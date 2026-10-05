@@ -5,7 +5,7 @@ from functools import lru_cache
 from typing import Any, List
 
 import jwt
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,6 +26,25 @@ class Settings(BaseSettings):
     jwt_refresh_token_expire_days: int = 7
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False)
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        if self.app_env.lower() == "production":
+            placeholder_values = {
+                "change-this-in-production-to-a-long-random-key-123456",
+                "change-this-jwt-secret-to-a-long-random-key-1234567890",
+                "postgres",
+                "redis_password",
+                "minioadmin",
+                "admin",
+            }
+            if self.secret_key in placeholder_values:
+                raise ValueError("SECRET_KEY must be set to a real secret in production")
+            if self.jwt_secret_key in placeholder_values:
+                raise ValueError("JWT_SECRET_KEY must be set to a real secret in production")
+            if not self.cors_origins:
+                raise ValueError("CORS_ORIGINS must include the production frontend URL")
+        return self
 
     @property
     def token_context(self) -> dict[str, Any]:
