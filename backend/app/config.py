@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
+import os
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Any, List
 
 import jwt
-from pydantic import Field, model_validator
+from dotenv import dotenv_values
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,7 +28,35 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 60
     jwt_refresh_token_expire_days: int = 7
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False)
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: Any) -> List[str]:
+        if value is None or value == "":
+            return []
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        if isinstance(value, tuple):
+            return [str(item).strip() for item in value if str(item).strip()]
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return []
+            if raw.startswith("["):
+                try:
+                    parsed = json.loads(raw)
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if str(item).strip()]
+                except json.JSONDecodeError:
+                    pass
+            return [item.strip() for item in raw.split(",") if item.strip()]
+        return [str(value).strip()]
 
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":
@@ -51,8 +82,36 @@ class Settings(BaseSettings):
         return {"iss": self.app_name, "aud": "slack-platform"}
 
 
+def _normalize_cors_origins(value: Any) -> List[str]:
+    if value is None or value == "":
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, tuple):
+        return [str(item).strip() for item in value if str(item).strip()]
+
+    raw = str(value).strip()
+    if not raw:
+        return []
+    if raw.startswith("["):
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                return [str(item).strip() for item in parsed if str(item).strip()]
+        except json.JSONDecodeError:
+            pass
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
 @lru_cache
 def get_settings() -> Settings:
+    raw_env = os.getenv("CORS_ORIGINS")
+    if raw_env is not None:
+        os.environ["CORS_ORIGINS"] = json.dumps(_normalize_cors_origins(raw_env))
+    else:
+        env_values = dotenv_values(".env")
+        if env_values.get("CORS_ORIGINS"):
+            os.environ["CORS_ORIGINS"] = json.dumps(_normalize_cors_origins(env_values.get("CORS_ORIGINS")))
     return Settings()
 
 
