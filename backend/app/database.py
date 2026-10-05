@@ -6,6 +6,8 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
 
+connect_args = {"ssl": True} if settings.database_use_ssl else {}
+
 
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention={
@@ -17,7 +19,7 @@ class Base(DeclarativeBase):
     })
 
 
-engine = create_async_engine(settings.database_url, echo=settings.debug, future=True)
+engine = create_async_engine(settings.database_url, echo=settings.debug, future=True, connect_args=connect_args)
 AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 

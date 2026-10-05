@@ -5,6 +5,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Any, List
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import jwt
 from dotenv import dotenv_values
@@ -20,6 +21,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     cors_origins: List[str] = Field(default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"])
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/slack_platform"
+    database_use_ssl: bool = False
     redis_url: str = "redis://localhost:6379/0"
     nats_url: str = "nats://localhost:4222"
     secret_key: str = "change-this-in-production-to-a-long-random-key-123456"
@@ -47,11 +49,28 @@ class Settings(BaseSettings):
         if not raw:
             return "postgresql+asyncpg://postgres:postgres@localhost:5432/slack_platform"
 
-        for prefix in ("postgresql+asyncpg://", "postgresql+psycopg://", "postgresql+psycopg2://", "postgresql://", "postgres://"):
-            if raw.startswith(prefix):
-                rest = raw[len(prefix):]
-                return f"postgresql+asyncpg://{rest}"
-        return raw
+        parsed = urlsplit(raw)
+        query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
+        filtered_pairs = [(k, v) for (k, v) in query_pairs if k.lower() not in {"sslmode", "channel_binding"}]
+        clean_query = urlencode(filtered_pairs)
+        clean_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, clean_query, parsed.fragment))
+
+        if clean_url.startswith("postgresql://"):
+            clean_url = "postgresql+asyncpg://" + clean_url[len("postgresql://"):]
+        elif clean_url.startswith("postgres://"):
+            clean_url = "postgresql+asyncpg://" + clean_url[len("postgres://"):]
+        elif clean_url.startswith("postgresql+psycopg://"):
+            clean_url = "postgresql+asyncpg://" + clean_url[len("postgresql+psycopg://"):]
+        elif clean_url.startswith("postgresql+psycopg2://"):
+            clean_url = "postgresql+asyncpg://" + clean_url[len("postgresql+psycopg2://"):]
+        return clean_url
+
+    @field_validator("database_use_ssl", mode="before")
+    @classmethod
+    def parse_database_use_ssl(cls, value: Any) -> bool:
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+        return bool(value)
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -130,6 +149,14 @@ def get_settings() -> Settings:
         env_values = dotenv_values(".env")
         if env_values.get("CORS_ORIGINS"):
             os.environ["CORS_ORIGINS"] = json.dumps(_normalize_cors_origins(env_values.get("CORS_ORIGINS")))
+
+    if os.getenv("DATABASE_URL"):
+        raw_database_url = os.getenv("DATABASE_URL", "")
+        if any(token in raw_database_url.lower() for token in ["sslmode=require", "channel_binding=require", "ssl=true", ".neon.tech"]):
+            os.environ["DATABASE_USE_SSL"] = "true"
+        else:
+            os.environ.setdefault("DATABASE_USE_SSL", "false")
+
     return Settings()
 
 
