@@ -11,6 +11,12 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d slack_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
@@ -19,6 +25,11 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_password", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   nats:
     image: nats:2.10-alpine
@@ -26,6 +37,11 @@ services:
       - "4222:4222"
       - "8222:8222"
     command: ["-js"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8222/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
   opensearch:
     image: opensearchproject/opensearch:2.15.0
@@ -38,6 +54,11 @@ services:
       - "9600:9600"
     volumes:
       - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
   minio:
     image: minio/minio:RELEASE.2024-10-13T13-34-11Z
@@ -50,6 +71,11 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
   api:
     build:
@@ -61,13 +87,22 @@ services:
       NATS_URL: nats://nats:4222
       OPENSEARCH_URL: http://opensearch:9200
     depends_on:
-      - postgres
-      - redis
-      - nats
-      - opensearch
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
     ports:
       - "8000:8000"
     command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
   frontend:
     image: node:22-alpine
@@ -78,7 +113,8 @@ services:
     ports:
       - "5173:5173"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   postgres_data:

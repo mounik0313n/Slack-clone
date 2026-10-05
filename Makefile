@@ -1,10 +1,12 @@
+NPM = $(shell node -p "process.platform === 'win32' ? 'npm.cmd' : 'npm'")
+
 .PHONY: backend-install frontend-install up down lint test build
 
 backend-install:
-	cd backend && python -m venv .venv && . .venv/bin/activate && pip install -U pip && pip install -e .
+	cd backend && python -m venv .venv && . .venv/bin/activate && pip install -U pip && pip install -e '.[dev]'
 
 frontend-install:
-	cd frontend && npm install
+	cd frontend && $(NPM) install
 
 up:
 	docker compose up -d
@@ -14,11 +16,11 @@ down:
 
 lint:
 	cd backend && python -m compileall app
-	cd frontend && npm run build
+	cd frontend && $(NPM) run build
 
 test:
-	cd backend && pytest -q
-	cd frontend && npm test -- --run
+	pytest -q tests
+	cd frontend && $(NPM) test -- --run
 
 build:
 	docker compose build
