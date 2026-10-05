@@ -1,0 +1,23 @@
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.database import Base
+
+
+class Thread(Base):
+    __tablename__ = "threads"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "channel_id", "root_message_id", name="uq_threads_workspace_channel_root_message"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, index=True)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False, index=True)
+    channel_id: Mapped[str] = mapped_column(String(36), ForeignKey("channels.id"), nullable=False, index=True)
+    root_message_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    author_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
