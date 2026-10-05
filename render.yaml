@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: slack-platform-api
+    env: docker
+    plan: starter
+    docker:
+      dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_NAME
+        value: slack-platform
+      - key: LOG_LEVEL
+        value: INFO
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: CORS_ORIGINS
+        value: https://app.example.com
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: NATS_URL
+        sync: false
+      - key: OPENSEARCH_URL
+        sync: false
