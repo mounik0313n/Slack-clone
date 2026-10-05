@@ -54,6 +54,16 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+async def root() -> dict[str, str | bool]:
+    return {
+        "status": "ok",
+        "service": "Slack Platform API",
+        "docs_url": "/docs",
+        "ready": True,
+    }
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
