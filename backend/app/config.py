@@ -35,6 +35,24 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: Any) -> str:
+        if value is None:
+            return "postgresql+asyncpg://postgres:postgres@localhost:5432/slack_platform"
+        if not isinstance(value, str):
+            return str(value)
+
+        raw = value.strip()
+        if not raw:
+            return "postgresql+asyncpg://postgres:postgres@localhost:5432/slack_platform"
+
+        for prefix in ("postgresql+asyncpg://", "postgresql+psycopg://", "postgresql+psycopg2://", "postgresql://", "postgres://"):
+            if raw.startswith(prefix):
+                rest = raw[len(prefix):]
+                return f"postgresql+asyncpg://{rest}"
+        return raw
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: Any) -> List[str]:
