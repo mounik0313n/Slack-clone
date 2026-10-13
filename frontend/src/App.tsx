@@ -42,7 +42,7 @@ type NotificationItem = {
 
 const DEFAULT_USER_ID = 'user-1';
 const DEFAULT_WORKSPACE_ID = 'ws-default';
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -57,14 +57,18 @@ function getRealtimeUrl(clientId: string = DEFAULT_USER_ID) {
     const base = String(import.meta.env.VITE_WS_URL).replace(/\/+$/, '');
     return `${base}?client_id=${clientId}`;
   }
-  try {
-    const url = new URL(API_BASE);
-    const wsProto = url.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${wsProto}//${url.host}/ws?client_id=${clientId}`;
-  } catch {
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    return `${protocol}://${window.location.hostname}:8000/ws?client_id=${clientId}`;
+  if (API_BASE && API_BASE.startsWith('http')) {
+    try {
+      const url = new URL(API_BASE);
+      const wsProto = url.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${wsProto}//${url.host}/ws?client_id=${clientId}`;
+    } catch {
+      // ignore
+    }
   }
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const port = window.location.port ? `:${window.location.port}` : '';
+  return `${protocol}://${window.location.hostname}${port}/ws?client_id=${clientId}`;
 }
 
 function App() {
