@@ -1,44 +1,46 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Slack Dark Theme Palette */
-  --bg-rail: #121016;
-  --bg-sidebar: #19171d;
-  --bg-main: #1a1d21;
-  --bg-panel: #1e2227;
-  --bg-hover: #222529;
-  --bg-active: #1164a3;
-  --bg-active-subtle: rgba(17, 100, 163, 0.2);
-  --bg-composer: #222529;
-  --bg-card: #222529;
+  /* Official Slack Light Aubergine Theme Palette */
+  --slack-topbar: #7d5277;
+  --slack-topbar-hover: #6e4668;
+  --slack-rail: #3f0e40;
+  --slack-rail-active-badge: rgba(255, 255, 255, 0.22);
+  --slack-rail-hover: rgba(255, 255, 255, 0.12);
+  
+  --slack-sidebar: #f3ecf1;
+  --slack-sidebar-hover: #ebdfe8;
+  --slack-sidebar-active: #522653;
+  --slack-sidebar-text: #38343d;
+  --slack-sidebar-muted: #616061;
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-card: rgba(255, 255, 255, 0.12);
-  --border-focus: #3b82f6;
+  --slack-main-bg: #ffffff;
+  --slack-message-hover: #f8f8f8;
+  --slack-border: #e2e0e2;
+  --slack-border-subtle: #f0edf0;
+  --slack-border-composer: #d1d2d3;
 
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
-  --text-link: #38bdf8;
+  --text-main: #1d1c1d;
+  --text-muted: #616061;
+  --text-dim: #868686;
+  --text-link: #1264a3;
 
-  --slack-purple: #4a154b;
-  --slack-purple-hover: #611f69;
-  --slack-blue: #1164a3;
-  --slack-green: #2bac76;
-  --slack-amber: #ecb22e;
-  --slack-red: #e01e5a;
+  --badge-unread: #522653;
+  --mention-bg: rgba(29, 155, 209, 0.12);
+  --mention-text: #1264a3;
+  --status-online: #2bac76;
+  --status-away: #ecb22e;
 
+  --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
-  --radius-xl: 16px;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.16);
 }
 
 * {
@@ -52,7 +54,7 @@ html, body, #root {
   width: 100%;
   overflow: hidden;
   font-family: var(--font-main);
-  background: var(--bg-main);
+  background: var(--slack-main-bg);
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
 }
@@ -71,148 +73,124 @@ button, input, textarea, select {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.16);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.28);
 }
 
-/* App Layout Grid */
+/* App Outer Container */
 .app-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background: var(--bg-main);
+  background: var(--slack-main-bg);
 }
 
-/* Top App Header / Search Bar */
+/* =========================================================
+   1. TOP BAR (Dusty Mauve Slack Header)
+========================================================= */
 .top-header {
-  height: 44px;
-  background: var(--bg-rail);
-  border-bottom: 1px solid var(--border-subtle);
+  height: 40px;
+  background: var(--slack-topbar);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 16px 0 12px;
+  color: #ffffff;
   user-select: none;
-  z-index: 20;
+  z-index: 50;
+  flex-shrink: 0;
 }
 
 .top-header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 260px;
+  gap: 16px;
 }
 
-.workspace-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: #fff;
+.top-nav-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1rem;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  transition: background 0.15s;
-}
-.workspace-badge:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.workspace-icon-box {
-  width: 24px;
-  height: 24px;
-  background: linear-gradient(135deg, #4a154b, #611f69);
-  border-radius: 6px;
   display: grid;
   place-items: center;
-  font-weight: 800;
-  font-size: 0.75rem;
-  color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-xs);
+  transition: all 0.15s;
+}
+.top-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
 }
 
-.top-search-btn {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-md);
-  color: var(--text-muted);
+.top-arrows-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Center Pill Search Bar */
+.top-search-center {
+  flex: 1;
+  max-width: 580px;
+  margin: 0 24px;
+}
+.top-search-pill {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  color: #ffffff;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
+  padding: 4px 14px;
   font-size: 0.85rem;
-  width: 440px;
-  max-width: 100%;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s;
 }
-.top-search-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
-  color: var(--text-main);
-  border-color: rgba(255, 255, 255, 0.2);
+.top-search-pill:hover {
+  background: rgba(0, 0, 0, 0.32);
 }
-.search-shortcut {
-  margin-left: auto;
-  font-size: 0.75rem;
-  background: rgba(0, 0, 0, 0.25);
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: var(--text-dim);
+.search-icon-svg {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+.search-text {
+  opacity: 0.9;
+  font-size: 0.82rem;
 }
 
+/* Top Right Controls */
 .top-header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
-
-.user-pill {
+.window-controls-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  padding: 4px 10px 4px 6px;
-  border-radius: 20px;
+  gap: 12px;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+.window-control-icon {
   cursor: pointer;
-  transition: background 0.15s;
-  border: 1px solid transparent;
+  transition: opacity 0.15s;
 }
-.user-pill:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.1);
+.window-control-icon:hover {
+  opacity: 1;
 }
 
-.user-avatar-small {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: white;
-  position: relative;
-}
-
-.presence-dot {
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 2px solid var(--bg-rail);
-}
-.presence-dot.online { background: var(--slack-green); }
-.presence-dot.away { background: var(--slack-amber); }
-.presence-dot.offline { background: var(--text-dim); }
-
-/* Main Horizontal Split */
+/* =========================================================
+   2. MAIN WORKSPACE ROW
+========================================================= */
 .main-workspace {
   display: flex;
   flex: 1;
@@ -220,72 +198,81 @@ button, input, textarea, select {
   overflow: hidden;
 }
 
-/* 1. Left Activity Rail (64px) */
+/* =========================================================
+   3. ACTIVITY RAIL (Leftmost Rich Purple #3f0e40)
+========================================================= */
 .activity-rail {
-  width: 64px;
-  background: var(--bg-rail);
-  border-right: 1px solid var(--border-subtle);
+  width: 68px;
+  background: var(--slack-rail);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 0 8px;
-  gap: 8px;
+  padding: 10px 0 12px;
   flex-shrink: 0;
-  z-index: 10;
+  user-select: none;
+  z-index: 30;
+}
+
+/* Yellow Acme Logo */
+.workspace-logo-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #fec02f;
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  margin-bottom: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s;
+}
+.workspace-logo-box:hover {
+  transform: scale(1.05);
 }
 
 .rail-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
   background: transparent;
   border: none;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  color: var(--text-muted);
+  gap: 3px;
+  color: rgba(255, 255, 255, 0.78);
   cursor: pointer;
-  transition: all 0.15s ease;
+  margin-bottom: 6px;
+  transition: all 0.15s;
   position: relative;
 }
 .rail-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-main);
+  background: var(--slack-rail-hover);
+  color: #ffffff;
 }
 .rail-btn.active {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  color: #ffffff;
 }
-.rail-btn.active::before {
-  content: '';
-  position: absolute;
-  left: -10px;
-  top: 10px;
-  bottom: 10px;
-  width: 4px;
-  border-radius: 0 4px 4px 0;
-  background: #38bdf8;
+.rail-btn.active .rail-icon-box {
+  background: var(--slack-rail-active-badge);
 }
-.rail-icon {
-  font-size: 1.25rem;
+
+.rail-icon-box {
+  width: 32px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
   line-height: 1;
+  transition: background 0.15s;
 }
 .rail-label {
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 500;
-}
-.rail-badge {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: var(--slack-red);
-  color: #fff;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 10px;
+  letter-spacing: -0.1px;
 }
 
 .rail-bottom {
@@ -293,41 +280,63 @@ button, input, textarea, select {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-/* Connection indicator button in rail */
-.rail-conn-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
+.rail-add-btn {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #ffffff;
+  font-size: 1.2rem;
+  display: grid;
+  place-items: center;
   cursor: pointer;
-  position: relative;
   transition: background 0.15s;
 }
-.rail-conn-indicator:hover {
-  background: rgba(255, 255, 255, 0.15);
+.rail-add-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
-.conn-pulse {
+
+.user-avatar-rail {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  position: relative;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.user-avatar-rail img {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.user-presence-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  box-shadow: 0 0 8px currentColor;
+  border: 2px solid var(--slack-rail);
 }
-.conn-pulse.online { background: var(--slack-green); color: var(--slack-green); }
-.conn-pulse.connecting { background: var(--slack-amber); color: var(--slack-amber); }
-.conn-pulse.offline { background: var(--slack-red); color: var(--slack-red); }
+.user-presence-dot.online { background: var(--status-online); }
+.user-presence-dot.away { background: var(--status-away); }
 
-/* 2. Channels & DMs Sidebar (240px) */
+/* =========================================================
+   4. SIDEBAR (Pale Mauve #f3ecf1)
+========================================================= */
 .channels-sidebar {
   width: 240px;
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border-subtle);
+  background: var(--slack-sidebar);
+  border-right: 1px solid var(--slack-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -335,72 +344,103 @@ button, input, textarea, select {
 }
 
 .sidebar-header {
-  padding: 14px 16px 12px;
-  border-bottom: 1px solid var(--border-subtle);
+  height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.sidebar-header-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-main);
+.workspace-name-wrap {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-.compose-icon-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  color: var(--text-muted);
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: var(--text-main);
   cursor: pointer;
-  display: grid;
-  place-items: center;
-  font-size: 0.9rem;
-  transition: all 0.15s;
 }
-.compose-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
+.workspace-name-wrap:hover {
+  opacity: 0.85;
+}
+.sidebar-filter-btn {
+  background: transparent;
+  border: none;
+  font-size: 1rem;
+  color: var(--slack-sidebar-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.sidebar-filter-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .sidebar-scroll-area {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 8px;
+  padding: 12px 10px;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
+/* Quick Nav (Unreads, Threads, Drafts) */
+.quick-nav-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.quick-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  font-size: 0.92rem;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-weight: 700;
+  transition: background 0.1s;
+}
+.quick-nav-item:hover {
+  background: var(--slack-sidebar-hover);
+}
+.quick-nav-item.muted {
+  color: var(--slack-sidebar-muted);
+  font-weight: 500;
+}
+.quick-nav-icon {
+  font-size: 1rem;
+  width: 18px;
+  text-align: center;
+}
+
+/* Sidebar Section Header */
 .sidebar-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 8px;
-  font-size: 0.8rem;
+  padding: 4px 10px;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--slack-sidebar-muted);
 }
 .sidebar-section-btn {
   background: none;
   border: none;
-  color: var(--text-dim);
+  color: var(--slack-sidebar-muted);
   font-size: 1.1rem;
   cursor: pointer;
-  padding: 0 4px;
   line-height: 1;
-  transition: color 0.15s;
-}
-.sidebar-section-btn:hover {
-  color: #fff;
 }
 
+/* Channel & DM Item Rows */
 .sidebar-nav-list {
   list-style: none;
   display: flex;
@@ -413,30 +453,35 @@ button, input, textarea, select {
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 6px 10px;
+  padding: 5px 10px;
   border-radius: var(--radius-sm);
   background: transparent;
   border: none;
-  color: var(--text-muted);
-  font-size: 0.88rem;
+  color: var(--slack-sidebar-text);
+  font-size: 0.9rem;
   text-align: left;
   cursor: pointer;
-  transition: all 0.15s;
-  position: relative;
-}
-.sidebar-nav-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-main);
-}
-.sidebar-nav-item.active {
-  background: var(--bg-active);
-  color: #ffffff;
+  transition: all 0.1s;
   font-weight: 500;
 }
+.sidebar-nav-item:hover {
+  background: var(--slack-sidebar-hover);
+}
+/* Active Channel: Solid Aubergine Pill with pure white bold text */
+.sidebar-nav-item.active {
+  background: var(--slack-sidebar-active);
+  color: #ffffff !important;
+  font-weight: 700;
+}
+.sidebar-nav-item.active .sidebar-item-prefix {
+  color: #ffffff;
+}
+
 .sidebar-item-prefix {
-  font-weight: 600;
   font-size: 0.95rem;
-  opacity: 0.8;
+  color: var(--slack-sidebar-muted);
+  width: 16px;
+  text-align: center;
 }
 .sidebar-item-name {
   flex: 1;
@@ -444,263 +489,366 @@ button, input, textarea, select {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.sidebar-item-badge {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-  font-size: 0.7rem;
+/* Unread purple badge */
+.sidebar-unread-badge {
+  background: var(--badge-unread);
+  color: #ffffff;
+  font-size: 0.72rem;
   font-weight: 700;
-  padding: 1px 6px;
+  padding: 1px 7px;
   border-radius: 10px;
+}
+.sidebar-nav-item.active .sidebar-unread-badge {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .dm-avatar-mini {
   width: 20px;
   height: 20px;
   border-radius: 4px;
-  display: grid;
-  place-items: center;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: #fff;
-  position: relative;
+  object-fit: cover;
 }
 
-/* 3. Main Conversation Panel */
+/* =========================================================
+   5. MAIN CONVERSATION PANE (#ffffff)
+========================================================= */
 .conversation-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--bg-main);
+  background: var(--slack-main-bg);
   position: relative;
 }
 
+/* Channel Header */
 .channel-header {
-  height: 56px;
-  border-bottom: 1px solid var(--border-subtle);
+  height: 52px;
+  border-bottom: 1px solid var(--slack-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  background: var(--bg-main);
-  z-index: 5;
+  background: var(--slack-main-bg);
+  flex-shrink: 0;
+  z-index: 10;
 }
 
-.channel-header-info {
+.channel-header-left {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
 }
 .channel-title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-.channel-title {
-  font-size: 1.1rem;
-  font-weight: 700;
+  gap: 6px;
+  font-size: 1.12rem;
+  font-weight: 800;
   color: var(--text-main);
-}
-.channel-star-btn {
-  background: none;
-  border: none;
-  color: var(--text-dim);
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: color 0.15s;
 }
-.channel-star-btn:hover {
-  color: var(--slack-amber);
-}
-.channel-topic {
-  font-size: 0.8rem;
+.channel-topic-text {
+  font-size: 0.82rem;
   color: var(--text-muted);
+  margin-left: 8px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 500px;
+  max-width: 420px;
 }
 
-.channel-header-actions {
+.channel-header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
-.huddle-btn {
+/* Overlapping Member Avatars + Count */
+.members-stack-group {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(43, 172, 118, 0.15);
-  border: 1px solid rgba(43, 172, 118, 0.3);
-  color: var(--slack-green);
-  padding: 5px 12px;
-  border-radius: 16px;
+  cursor: pointer;
+}
+.avatar-stack-img {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px solid #ffffff;
+  margin-left: -6px;
+  object-fit: cover;
+}
+.avatar-stack-img:first-child {
+  margin-left: 0;
+}
+.member-count-num {
   font-size: 0.82rem;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.huddle-btn:hover {
-  background: rgba(43, 172, 118, 0.25);
+  color: var(--text-muted);
+  margin-left: 6px;
 }
 
-.member-stack-btn {
+/* Huddle Pill Button */
+.huddle-pill-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 5px 10px;
-  font-size: 0.82rem;
-  color: var(--text-muted);
+  background: #ffffff;
+  border: 1px solid var(--slack-border-composer);
+  border-radius: 18px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
   cursor: pointer;
   transition: all 0.15s;
 }
-.member-stack-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+.huddle-pill-btn:hover {
+  background: #f8f8f8;
+}
+.huddle-pill-btn.active {
+  background: rgba(43, 172, 118, 0.12);
+  border-color: var(--status-online);
+  color: var(--status-online);
+}
+
+.canvas-toggle-btn {
+  background: transparent;
+  border: 1px solid var(--slack-border-composer);
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-xs);
+  display: grid;
+  place-items: center;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.canvas-toggle-btn:hover {
+  background: #f8f8f8;
   color: var(--text-main);
 }
 
-/* Messages Scroll Area */
+/* =========================================================
+   6. MESSAGE STREAM
+========================================================= */
 .messages-container {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 16px 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
 }
 
-/* Channel Welcome Hero Banner */
-.channel-welcome-banner {
-  padding: 24px 0 16px;
-  border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 16px;
-}
-.channel-welcome-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #1e3a8a, #3b82f6);
-  display: grid;
-  place-items: center;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 12px;
-}
-.channel-welcome-title {
-  font-size: 1.4rem;
-  font-weight: 800;
-  margin-bottom: 6px;
-}
-.channel-welcome-desc {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  line-height: 1.5;
-  max-width: 600px;
-}
-
-/* Message Item */
+/* Standard Message Item */
 .message-item {
   position: relative;
   display: flex;
   gap: 12px;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  transition: background 0.15s;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.1s;
 }
 .message-item:hover {
-  background: var(--bg-hover);
+  background: var(--slack-message-hover);
 }
 .message-item:hover .message-hover-toolbar {
   opacity: 1;
   pointer-events: auto;
 }
 
-.author-avatar {
+/* Avatar */
+.msg-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
   display: grid;
   place-items: center;
   font-weight: 700;
-  font-size: 0.95rem;
-  color: #fff;
-  flex-shrink: 0;
-  user-select: none;
+  font-size: 1rem;
+  color: #ffffff;
 }
 
-.message-body-wrap {
+/* Calendar Badge Avatar for App */
+.calendar-app-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: #1d9bd1;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.msg-body-wrap {
   flex: 1;
   min-width: 0;
 }
 
-.message-meta-row {
+.msg-meta-row {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
-.author-name {
-  font-weight: 700;
-  font-size: 0.92rem;
+.msg-author-name {
+  font-weight: 800;
+  font-size: 0.95rem;
   color: var(--text-main);
   cursor: pointer;
 }
-.author-name:hover {
+.msg-author-name:hover {
   text-decoration: underline;
 }
-.bot-badge {
-  background: rgba(59, 130, 246, 0.25);
-  color: #60a5fa;
+.app-badge {
+  background: #e8e8e8;
+  color: #616061;
   font-size: 0.65rem;
   font-weight: 700;
   padding: 1px 4px;
-  border-radius: 4px;
-  text-transform: uppercase;
+  border-radius: 3px;
 }
-.message-timestamp {
+.msg-timestamp {
   font-size: 0.75rem;
   color: var(--text-dim);
 }
 
-.message-text {
-  font-size: 0.92rem;
-  line-height: 1.5;
-  color: #e2e8f0;
+.msg-content-text {
+  font-size: 0.95rem;
+  line-height: 1.48;
+  color: var(--text-main);
   word-break: break-word;
 }
-.message-text code {
-  background: rgba(0, 0, 0, 0.3);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.85em;
-  color: #38bdf8;
+
+/* @mention pill in message */
+.mention-pill {
+  background: var(--mention-bg);
+  color: var(--mention-text);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+  display: inline-block;
+  cursor: pointer;
+}
+.mention-pill:hover {
+  background: rgba(29, 155, 209, 0.25);
 }
 
-/* Floating Hover Toolbar */
+/* Attachment Card (Cyan left bar) */
+.attachment-card-cyan {
+  border-left: 4px solid #1d9bd1;
+  padding: 2px 12px;
+  margin-top: 8px;
+}
+.attach-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-link);
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+.attach-title:hover {
+  text-decoration: underline;
+}
+.attach-time {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Huddle Event Message Row */
+.huddle-event-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 4px 8px;
+}
+.huddle-event-icon-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ede9ea;
+  color: #616061;
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+/* Canvas Attachment Box */
+.canvas-embed-box {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.canvas-label-pill {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.canvas-inner-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--slack-border-composer);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s;
+  max-width: 440px;
+}
+.canvas-inner-card:hover {
+  border-color: #b0b0b0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+.canvas-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #522653;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+}
+.canvas-card-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+.canvas-card-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Message Hover Action Bar */
 .message-hover-toolbar {
   position: absolute;
   top: -14px;
   right: 16px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-card);
+  background: #ffffff;
+  border: 1px solid var(--slack-border-composer);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   padding: 2px 4px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-card);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s;
   z-index: 10;
 }
-
 .toolbar-btn {
   background: transparent;
   border: none;
@@ -711,14 +859,13 @@ button, input, textarea, select {
   color: var(--text-muted);
   display: grid;
   place-items: center;
-  transition: background 0.1s;
 }
 .toolbar-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: #f0f0f0;
+  color: var(--text-main);
 }
 
-/* Reaction Pills */
+/* Emoji Reactions Row */
 .reactions-row {
   display: flex;
   flex-wrap: wrap;
@@ -729,103 +876,64 @@ button, input, textarea, select {
   display: flex;
   align-items: center;
   gap: 4px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #f0f0f0;
+  border: 1px solid transparent;
   padding: 2px 8px;
   border-radius: 12px;
-  font-size: 0.78rem;
-  color: var(--text-muted);
+  font-size: 0.8rem;
+  color: var(--text-main);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.1s;
 }
 .reaction-pill:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.25);
+  background: #e4e4e4;
+  border-color: #d0d0d0;
 }
 .reaction-pill.reacted {
-  background: rgba(17, 100, 163, 0.25);
-  border-color: #1164a3;
-  color: #38bdf8;
+  background: rgba(29, 155, 209, 0.15);
+  border-color: #1d9bd1;
+  color: #1264a3;
 }
 .reaction-count {
-  font-weight: 600;
-  font-size: 0.75rem;
+  font-weight: 700;
+  font-size: 0.78rem;
 }
 
-/* Thread Replies Link under message */
+/* Thread Link */
 .thread-indicator {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   margin-top: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.82rem;
+  font-weight: 700;
   color: var(--text-link);
-  background: rgba(56, 189, 248, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  padding: 3px 10px;
-  border-radius: 6px;
+  background: transparent;
+  border: none;
   cursor: pointer;
-  transition: all 0.15s;
 }
 .thread-indicator:hover {
-  background: rgba(56, 189, 248, 0.2);
   text-decoration: underline;
 }
 
-/* 4. Rich Composer Box */
+/* =========================================================
+   7. COMPOSER BOX
+========================================================= */
 .composer-box {
   padding: 0 20px 20px;
-  background: var(--bg-main);
+  background: var(--slack-main-bg);
 }
 
 .composer-border-wrap {
-  border: 1px solid var(--border-card);
+  border: 1px solid var(--slack-border-composer);
   border-radius: var(--radius-md);
-  background: var(--bg-composer);
-  transition: border-color 0.2s;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
+  transition: border-color 0.2s;
 }
 .composer-border-wrap:focus-within {
-  border-color: var(--border-focus);
-  box-shadow: 0 0 0 1px var(--border-focus);
-}
-
-.composer-toolbar {
-  display: flex;
-  align-items: center;
-  padding: 6px 10px;
-  background: rgba(0, 0, 0, 0.15);
-  border-bottom: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-  gap: 4px;
-}
-
-.comp-tool-btn {
-  background: transparent;
-  border: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  color: var(--text-muted);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  font-size: 0.85rem;
-  font-weight: 700;
-  transition: background 0.1s;
-}
-.comp-tool-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-.comp-tool-divider {
-  width: 1px;
-  height: 18px;
-  background: var(--border-subtle);
-  margin: 0 4px;
+  border-color: #616061;
 }
 
 .composer-textarea {
@@ -834,76 +942,90 @@ button, input, textarea, select {
   border: none;
   outline: none;
   color: var(--text-main);
-  padding: 10px 14px;
+  padding: 12px 14px 8px;
   font-size: 0.95rem;
-  line-height: 1.5;
+  line-height: 1.45;
   resize: none;
-  min-height: 52px;
-  max-height: 180px;
+  min-height: 48px;
+  max-height: 160px;
+}
+.composer-textarea::placeholder {
+  color: #868686;
 }
 
-.composer-footer {
+/* Composer Bottom Toolbar */
+.composer-bottom-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px 8px;
+  padding: 6px 12px 8px;
+  border-top: 1px solid transparent;
 }
 
-.composer-footer-left {
+.composer-tools-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comp-icon-btn {
+  background: transparent;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: #616061;
+  font-size: 1rem;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.comp-icon-btn:hover {
+  background: #f0f0f0;
+  color: var(--text-main);
+}
+
+.composer-tools-right {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.composer-action-pill {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  padding: 3px 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.15s;
-}
-.composer-action-pill:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-}
-
-.composer-send-btn {
+/* Send Airplane Button with Chevron */
+.comp-send-btn {
   background: #007a5a;
   border: none;
-  color: #fff;
-  border-radius: 6px;
-  padding: 6px 14px;
-  font-size: 0.88rem;
-  font-weight: 600;
+  border-radius: 4px;
+  color: #ffffff;
+  padding: 5px 12px;
   display: flex;
   align-items: center;
   gap: 6px;
+  font-size: 0.95rem;
   cursor: pointer;
   transition: background 0.15s;
 }
-.composer-send-btn:hover:not(:disabled) {
+.comp-send-btn:hover:not(:disabled) {
   background: #148567;
 }
-.composer-send-btn:disabled {
-  opacity: 0.4;
+.comp-send-btn:disabled {
+  background: #e2e2e2;
+  color: #9e9e9e;
   cursor: not-allowed;
 }
 
-/* 5. Right Drawer / Thread Panel (360px) */
+/* =========================================================
+   8. RIGHT THREAD DRAWER
+========================================================= */
 .thread-drawer {
   width: 360px;
-  background: var(--bg-sidebar);
-  border-left: 1px solid var(--border-subtle);
+  background: #ffffff;
+  border-left: 1px solid var(--slack-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  animation: slideLeft 0.2s ease-out;
+  animation: slideLeft 0.15s ease-out;
 }
 @keyframes slideLeft {
   from { transform: translateX(100%); }
@@ -911,8 +1033,8 @@ button, input, textarea, select {
 }
 
 .thread-header {
-  height: 56px;
-  border-bottom: 1px solid var(--border-subtle);
+  height: 52px;
+  border-bottom: 1px solid var(--slack-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -920,23 +1042,18 @@ button, input, textarea, select {
 }
 .thread-header-title {
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 800;
 }
 .thread-close-btn {
   background: transparent;
   border: none;
+  font-size: 1.1rem;
   color: var(--text-muted);
-  font-size: 1.2rem;
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
-  display: grid;
-  place-items: center;
-  transition: all 0.15s;
 }
 .thread-close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: var(--text-main);
 }
 
 .thread-messages-list {
@@ -951,186 +1068,59 @@ button, input, textarea, select {
 .thread-root-card {
   padding: 12px;
   border-radius: var(--radius-md);
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--border-subtle);
+  background: #f8f8f8;
+  border: 1px solid var(--slack-border);
 }
 
-.thread-replies-divider {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-dim);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-.thread-replies-divider::before, .thread-replies-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border-subtle);
-}
-
-/* Modals & Popovers */
+/* =========================================================
+   9. MODALS, POPOVERS & USER SWITCHER
+========================================================= */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
   display: grid;
   place-items: center;
   z-index: 100;
-  animation: fadeIn 0.15s ease-out;
-}
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .modal-card {
   width: 90%;
   max-width: 480px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-card);
+  background: #ffffff;
   border-radius: var(--radius-lg);
   padding: 24px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-popover);
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
 .modal-title {
-  font-size: 1.2rem;
-  font-weight: 700;
+  font-size: 1.25rem;
+  font-weight: 800;
 }
-
 .modal-input {
   width: 100%;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  color: #fff;
+  border: 1px solid var(--slack-border-composer);
+  border-radius: var(--radius-xs);
+  padding: 10px 12px;
   font-size: 0.95rem;
   outline: none;
 }
 .modal-input:focus {
-  border-color: var(--border-focus);
+  border-color: #616061;
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 8px;
-}
-.modal-btn-cancel {
-  background: transparent;
-  border: 1px solid var(--border-subtle);
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  cursor: pointer;
-}
-.modal-btn-cancel:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
-}
-.modal-btn-primary {
-  background: #007a5a;
-  border: none;
-  padding: 8px 18px;
-  border-radius: var(--radius-sm);
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-}
-.modal-btn-primary:hover {
-  background: #148567;
-}
-
-/* Emoji Picker Popover */
-.emoji-popover {
-  position: absolute;
-  bottom: 60px;
-  left: 20px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-md);
-  padding: 10px;
-  box-shadow: var(--shadow-lg);
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 6px;
-  z-index: 50;
-}
-.emoji-choice-btn {
-  background: transparent;
-  border: none;
-  font-size: 1.3rem;
-  padding: 6px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: transform 0.1s, background 0.1s;
-}
-.emoji-choice-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: scale(1.2);
-}
-
-/* Search Modal */
-.search-modal-card {
-  width: 90%;
-  max-width: 600px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.search-results-list {
-  max-height: 340px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.search-result-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  width: 100%;
-  text-align: left;
-  transition: background 0.15s;
-}
-.search-result-row:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-/* User Switcher Dropdown */
 .user-menu-popover {
   position: absolute;
-  top: 48px;
+  top: 42px;
   right: 16px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-card);
+  background: #ffffff;
+  border: 1px solid var(--slack-border-composer);
   border-radius: var(--radius-md);
   padding: 12px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-popover);
   width: 260px;
   display: flex;
   flex-direction: column;
@@ -1148,97 +1138,51 @@ button, input, textarea, select {
   cursor: pointer;
   width: 100%;
   text-align: left;
-  color: var(--text-main);
-  transition: background 0.15s;
+  transition: background 0.1s;
 }
 .user-option-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: #f0f0f0;
 }
 .user-option-btn.active {
-  background: rgba(56, 189, 248, 0.15);
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(82, 38, 83, 0.1);
+  font-weight: 700;
 }
 
-/* AI Slackbot Tab */
-.ai-view-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-main);
-  padding: 24px 32px;
-  overflow-y: auto;
-}
-.ai-hero-header {
-  text-align: center;
-  max-width: 600px;
-  margin: 20px auto 30px;
-}
-.ai-hero-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #8b5cf6, #3b82f6);
-  display: grid;
-  place-items: center;
-  font-size: 2rem;
-  margin: 0 auto 16px;
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
-}
-.ai-hero-title {
-  font-size: 1.8rem;
-  font-weight: 800;
-  margin-bottom: 8px;
-}
-.ai-hero-sub {
-  color: var(--text-muted);
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-.ai-prompt-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
-  max-width: 800px;
-  margin: 0 auto 30px;
-  width: 100%;
-}
-.ai-prompt-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border-card);
+/* Emoji Picker */
+.emoji-popover {
+  position: absolute;
+  bottom: 60px;
+  left: 20px;
+  background: #ffffff;
+  border: 1px solid var(--slack-border-composer);
   border-radius: var(--radius-md);
-  padding: 16px;
-  text-align: left;
+  padding: 10px;
+  box-shadow: var(--shadow-popover);
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  z-index: 50;
+}
+.emoji-choice-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.3rem;
+  padding: 6px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s;
-  color: var(--text-main);
 }
-.ai-prompt-card:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: #8b5cf6;
-  transform: translateY(-2px);
-}
-.ai-prompt-card strong {
-  display: block;
-  font-size: 0.95rem;
-  margin-bottom: 4px;
-  color: #c084fc;
-}
-.ai-prompt-card p {
-  font-size: 0.85rem;
-  color: var(--text-muted);
+.emoji-choice-btn:hover {
+  background: #f0f0f0;
+  transform: scale(1.15);
 }
 
-/* Responsive adjustments */
+/* Responsive */
 @media (max-width: 900px) {
-  .channels-sidebar {
-    width: 200px;
-  }
-  .thread-drawer {
-    width: 300px;
-  }
+  .channels-sidebar { width: 200px; }
+  .thread-drawer { width: 300px; }
 }
 @media (max-width: 768px) {
   .activity-rail { display: none; }
-  .channels-sidebar { width: 100%; display: none; }
+  .channels-sidebar { display: none; }
   .thread-drawer { display: none; }
 }
