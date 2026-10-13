@@ -42,7 +42,7 @@ type NotificationItem = {
 
 const DEFAULT_USER_ID = 'user-1';
 const DEFAULT_WORKSPACE_ID = 'ws-default';
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -52,9 +52,19 @@ async function fetchJson<T>(url: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-function getRealtimeUrl() {
-  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${protocol}://${window.location.hostname}:8000/ws?client_id=${DEFAULT_USER_ID}`;
+function getRealtimeUrl(clientId: string = DEFAULT_USER_ID) {
+  if (import.meta.env.VITE_WS_URL) {
+    const base = String(import.meta.env.VITE_WS_URL).replace(/\/+$/, '');
+    return `${base}?client_id=${clientId}`;
+  }
+  try {
+    const url = new URL(API_BASE);
+    const wsProto = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsProto}//${url.host}/ws?client_id=${clientId}`;
+  } catch {
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    return `${protocol}://${window.location.hostname}:8000/ws?client_id=${clientId}`;
+  }
 }
 
 function App() {
@@ -67,6 +77,33 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<'ONLINE' | 'OFFLINE' | 'RECONNECTING' | 'SYNCING' | 'CONNECTING'>(getConnectionState());
   const [deviceId, setDeviceId] = useState<string>('');
+  const [newChannelName, setNewChannelName] = useState('');
+  const [isCreatingChannel, setIsCreatingChannel] = useState(false);
+
+  const handleCreateChannel = async () => {
+    if (!newChannelName.trim()) return;
+    try {
+      const response = await fetch(`${API_BASE}/api/v1/channels`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspace_id: DEFAULT_WORKSPACE_ID,
+          name: newChannelName.trim().toLowerCase().replace(/\s+/g, '-'),
+          topic: `Channel for ${newChannelName.trim()}`,
+          is_private: false,
+        }),
+      });
+      if (response.ok) {
+        const created = (await response.json()) as Channel;
+        setChannels((prev) => [...prev, created]);
+        setSelectedChannelId(created.id);
+        setNewChannelName('');
+        setIsCreatingChannel(false);
+      }
+    } catch {
+      setError('Failed to create channel.');
+    }
+  };
 
   const selectedChannel = useMemo(
     () => channels.find((channel) => channel.id === selectedChannelId) ?? channels[0] ?? null,
@@ -364,6 +401,13 @@ function App() {
         cursor: '0',
         conversations: channels.map((channel) => channel.id),
       });
+      if (channels.length > 0) {
+        client.send({
+          event_type: 'subscribe',
+          type: 'subscribe',
+          payload: { channels: channels.map((channel) => channel.id) },
+        });
+      }
     };
 
     requestInitialSync();
@@ -445,10 +489,41 @@ function App() {
       </aside>
 
       <aside className="channel-sidebar">
-        <div className="panel-header">
-          <span>Workspace</span>
-          <small className="status-badge">{connectionState}</small>
+        <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Channels</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <button
+              type="button"
+              style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '1.2rem', padding: '0 4px', lineHeight: 1 }}
+              title="Create channel"
+              onClick={() => setIsCreatingChannel(!isCreatingChannel)}
+            >
+              +
+            </button>
+            <small className="status-badge">{connectionState}</small>
+          </div>
         </div>
+        {isCreatingChannel ? (
+          <form
+            onSubmit={(e) => { e.preventDefault(); void handleCreateChannel(); }}
+            style={{ marginBottom: '0.8rem', display: 'flex', gap: '0.4rem' }}
+          >
+            <input
+              type="text"
+              placeholder="channel-name"
+              value={newChannelName}
+              onChange={(e) => setNewChannelName(e.target.value)}
+              style={{ flex: 1, padding: '0.35rem 0.5rem', background: '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '6px', fontSize: '0.85rem' }}
+              autoFocus
+            />
+            <button
+              type="submit"
+              style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.35rem 0.6rem', cursor: 'pointer', fontSize: '0.85rem' }}
+            >
+              Add
+            </button>
+          </form>
+        ) : null}
         <ul>
           {channels.map((channel) => (
             <li key={channel.id}>
