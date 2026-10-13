@@ -6,23 +6,28 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import settings
+from app.config import decode_token, settings
 from app.database import AsyncSessionLocal, create_db_and_tables
+from app.modules.admin.router import router as admin_router
+from app.modules.ai.router import router as ai_router
 from app.modules.auth.router import router as auth_router
-from app.modules.organizations.router import router as organizations_router
-from app.modules.workspaces.router import router as workspaces_router
+from app.modules.auth.service import is_token_revoked
 from app.modules.channels.router import router as channels_router
 from app.modules.conversations.router import router as conversations_router
 from app.modules.devices.router import router as devices_router
+from app.modules.files.router import router as files_router
 from app.modules.mentions.router import router as mentions_router
 from app.modules.messages.router import router as messages_router
 from app.modules.notifications.router import router as notifications_router
+from app.modules.organizations.router import router as organizations_router
 from app.modules.presence.service import PresenceService
 from app.modules.read_states.router import router as read_states_router
 from app.modules.reactions.router import router as reactions_router
-from app.modules.sync.service import collect_sync_snapshot
+from app.modules.search.router import router as search_router
 from app.modules.sync.router import router as sync_router
+from app.modules.sync.service import collect_sync_snapshot
 from app.modules.threads.router import router as threads_router
+from app.modules.workspaces.router import router as workspaces_router
 from app.realtime.gateway import RealtimeGateway
 
 
@@ -83,6 +88,15 @@ async def health_ready() -> dict[str, str]:
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     client_id = websocket.query_params.get("client_id", "anonymous")
+    token = websocket.query_params.get("token")
+    if token and not is_token_revoked(token):
+        try:
+            claims = decode_token(token)
+            if claims and claims.get("type") == "access":
+                client_id = claims.get("sub", client_id)
+        except Exception:
+            pass
+
     await realtime_gateway.connect(websocket, client_id)
     await websocket.send_json({"event_type": "connected", "payload": {"status": "ok", "client_id": client_id}})
     try:
@@ -94,6 +108,21 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 payload = {"event_type": "echo", "payload": {"message": raw_message}}
 
             event_type = payload.get("event_type")
+
+            if event_type == "authenticate":
+                auth_token = payload.get("token") or payload.get("payload", {}).get("token")
+                if auth_token and not is_token_revoked(auth_token):
+                    try:
+                        claims = decode_token(auth_token)
+                        if claims and claims.get("type") == "access":
+                            client_id = claims.get("sub", client_id)
+                            await websocket.send_json({"event_type": "authenticated", "payload": {"status": "ok", "client_id": client_id}})
+                            continue
+                    except Exception:
+                        pass
+                await websocket.send_json({"event_type": "error", "payload": {"code": "AUTH_FAILED", "message": "Invalid or revoked token"}})
+                continue
+
             if event_type == "subscribe":
                 channels = payload.get("channels", [])
                 for channel in channels:
@@ -181,3 +210,7 @@ app.include_router(sync_router, prefix="/api/v1")
 app.include_router(devices_router, prefix="/api/v1")
 app.include_router(threads_router, prefix="/api/v1")
 app.include_router(reactions_router, prefix="/api/v1")
+app.include_router(search_router, prefix="/api/v1")
+app.include_router(files_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
+app.include_router(ai_router, prefix="/api/v1")

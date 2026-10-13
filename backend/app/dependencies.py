@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import decode_token, settings
 from app.database import AsyncSessionLocal
+from app.modules.auth.service import is_token_revoked
 
 security = HTTPBearer(auto_error=False)
 
@@ -28,13 +29,16 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
 
     token = credentials.credentials
+    if is_token_revoked(token):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked")
+
     try:
         claims = decode_token(token)
     except jwt.PyJWTError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
 
-    if claims.get("type") not in {"access", "refresh"}:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+    if claims.get("type") != "access":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Access token required")
 
     roles = claims.get("roles") or []
     if isinstance(roles, str):
@@ -50,4 +54,16 @@ async def get_current_user(
         "permissions": claims.get("permissions", []),
         "organization_id": claims.get("organization_id"),
         "workspace_id": claims.get("workspace_id"),
+        "token": token,
     }
+
+
+async def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> dict | None:
+    if credentials is None:
+        return None
+    try:
+        return await get_current_user(credentials)
+    except HTTPException:
+        return None

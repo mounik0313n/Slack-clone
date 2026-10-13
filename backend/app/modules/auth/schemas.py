@@ -15,6 +15,19 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class AuthToken(BaseModel):
     access_token: str
     refresh_token: str
@@ -29,3 +42,9 @@ class UserRead(BaseModel):
     display_name: str
     is_active: bool
     email_verified: bool
+
+
+class UserProfile(UserRead):
+    role: str = "member"
+    roles: list[str] = ["member"]
+    permissions: list[str] = []

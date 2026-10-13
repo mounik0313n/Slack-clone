@@ -95,6 +95,10 @@ export class RealtimeClient {
     return () => this.statusListeners.delete(listener);
   }
 
+  onStatus(listener: (status: ConnectionStatus) => void) {
+    return this.onStatusChange(listener);
+  }
+
   private scheduleReconnect() {
     if (this.isExplicitDisconnect || this.reconnectTimer) return;
     this.reconnectTimer = window.setTimeout(() => {
@@ -129,6 +133,15 @@ export class RealtimeClient {
     const handlers = this.listeners.get(eventType) ?? new Set();
     handlers.add(handler);
     this.listeners.set(eventType, handlers);
+    return () => {
+      const current = this.listeners.get(eventType);
+      if (current) {
+        current.delete(handler);
+        if (current.size === 0) {
+          this.listeners.delete(eventType);
+        }
+      }
+    };
   }
 
   disconnect() {

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Any, List
@@ -167,6 +168,7 @@ def create_token(subject: str, *, token_type: str, expires_minutes: int | None =
     now = datetime.now(timezone.utc)
     expires_delta = timedelta(minutes=expires_minutes or settings.jwt_access_token_expire_minutes)
     payload = {
+        "jti": secrets.token_hex(16),
         "sub": subject,
         "type": token_type,
         "iat": int(now.timestamp()),

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db
+from app.config import settings
+from app.dependencies import get_db, get_optional_current_user
 from app.modules.messages.schemas import MessageCreate, MessageRead
 from app.modules.messages.service import create_message, list_messages
 
@@ -37,12 +38,23 @@ async def get_messages(
 
 
 @router.post("", response_model=MessageRead, status_code=201)
-async def create_message_endpoint(payload: MessageCreate, session: AsyncSession = Depends(get_db)) -> MessageRead:
+async def create_message_endpoint(
+    payload: MessageCreate,
+    session: AsyncSession = Depends(get_db),
+    current_user: dict | None = Depends(get_optional_current_user),
+) -> MessageRead:
+    user_authenticated = isinstance(current_user, dict)
+    if settings.app_env.lower() == "production" and not user_authenticated:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+
+    # Secure actor resolution: server context overrides client-supplied author_id
+    author_id = current_user["user_id"] if user_authenticated else payload.author_id
+
     message = await create_message(
         session,
         workspace_id=payload.workspace_id,
         channel_id=payload.channel_id,
-        author_id=payload.author_id,
+        author_id=author_id,
         body=payload.body,
         thread_id=payload.thread_id,
         client_message_id=payload.client_message_id,
