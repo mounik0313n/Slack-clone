@@ -106,9 +106,16 @@ async def create_message(
     return message
 
 
-async def list_messages(session: AsyncSession, channel_id: str | None = None) -> list[Message]:
+async def list_messages(
+    session: AsyncSession,
+    channel_id: str | None = None,
+    thread_id: str | None = None,
+) -> list[Message]:
     query = select(Message)
     if channel_id:
         query = query.where(Message.channel_id == channel_id)
-    result = await session.execute(query.order_by(Message.sequence.desc()))
+    if thread_id is not None:
+        query = query.where(Message.thread_id == thread_id)
+    result = await session.execute(query.order_by(Message.sequence.asc()))
     return list(result.scalars().all())
+

@@ -13,8 +13,12 @@ router = APIRouter(prefix="/messages", tags=["messages"])
 
 
 @router.get("", response_model=list[MessageRead])
-async def get_messages(session: AsyncSession = Depends(get_db)) -> list[MessageRead]:
-    messages = await list_messages(session)
+async def get_messages(
+    channel_id: str | None = None,
+    thread_id: str | None = None,
+    session: AsyncSession = Depends(get_db),
+) -> list[MessageRead]:
+    messages = await list_messages(session, channel_id=channel_id, thread_id=thread_id)
     return [
         MessageRead(
             id=message.id,

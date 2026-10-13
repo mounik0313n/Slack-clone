@@ -5,9 +5,36 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
 from app.modules.reactions.schemas import ReactionCreate, ReactionRead
-from app.modules.reactions.service import add_reaction, remove_reaction
+from app.modules.reactions.service import add_reaction, list_reactions, remove_reaction
 
 router = APIRouter(prefix="/reactions", tags=["reactions"])
+
+
+@router.get("", response_model=list[ReactionRead])
+async def get_reactions(
+    workspace_id: str | None = None,
+    channel_id: str | None = None,
+    message_id: str | None = None,
+    session: AsyncSession = Depends(get_db),
+) -> list[ReactionRead]:
+    reactions = await list_reactions(
+        session,
+        workspace_id=workspace_id,
+        channel_id=channel_id,
+        message_id=message_id,
+    )
+    return [
+        ReactionRead(
+            id=reaction.id,
+            workspace_id=reaction.workspace_id,
+            channel_id=reaction.channel_id,
+            message_id=reaction.message_id,
+            user_id=reaction.user_id,
+            emoji=reaction.emoji,
+            created_at=reaction.created_at,
+        )
+        for reaction in reactions
+    ]
 
 
 @router.post("", response_model=ReactionRead, status_code=201)
@@ -20,6 +47,23 @@ async def create_reaction(payload: ReactionCreate, session: AsyncSession = Depen
         user_id=payload.user_id,
         emoji=payload.emoji,
     )
+    try:
+        from app.main import realtime_gateway
+        await realtime_gateway.broadcast(
+            "reaction.created",
+            {
+                "reaction_id": reaction.id,
+                "workspace_id": reaction.workspace_id,
+                "channel_id": reaction.channel_id,
+                "message_id": reaction.message_id,
+                "user_id": reaction.user_id,
+                "emoji": reaction.emoji,
+            },
+            channel=reaction.channel_id,
+        )
+    except Exception:
+        pass
+
     return ReactionRead(
         id=reaction.id,
         workspace_id=reaction.workspace_id,
@@ -48,4 +92,22 @@ async def delete_reaction(
         user_id=user_id,
         emoji=emoji,
     )
+    if removed:
+        try:
+            from app.main import realtime_gateway
+            await realtime_gateway.broadcast(
+                "reaction.deleted",
+                {
+                    "workspace_id": workspace_id,
+                    "channel_id": channel_id,
+                    "message_id": message_id,
+                    "user_id": user_id,
+                    "emoji": emoji,
+                },
+                channel=channel_id,
+            )
+        except Exception:
+            pass
+
     return {"removed": removed}
+
