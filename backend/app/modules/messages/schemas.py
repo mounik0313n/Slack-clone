@@ -27,5 +27,6 @@ class MessageRead(BaseModel):
     body: str
     thread_id: str | None
     client_message_id: str | None = None
+    is_pinned: bool = False
     created_at: datetime
     updated_at: datetime | None = None

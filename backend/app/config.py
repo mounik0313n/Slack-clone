@@ -164,9 +164,19 @@ def get_settings() -> Settings:
 settings = get_settings()
 
 
-def create_token(subject: str, *, token_type: str, expires_minutes: int | None = None, **extra_claims: Any) -> str:
+def create_token(
+    subject: str,
+    *,
+    token_type: str,
+    expires_minutes: int | None = None,
+    expires_delta_seconds: int | None = None,
+    **extra_claims: Any,
+) -> str:
     now = datetime.now(timezone.utc)
-    expires_delta = timedelta(minutes=expires_minutes or settings.jwt_access_token_expire_minutes)
+    if expires_delta_seconds is not None:
+        expires_delta = timedelta(seconds=expires_delta_seconds)
+    else:
+        expires_delta = timedelta(minutes=expires_minutes or settings.jwt_access_token_expire_minutes)
     payload = {
         "jti": secrets.token_hex(16),
         "sub": subject,

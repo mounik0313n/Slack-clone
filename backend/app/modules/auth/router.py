@@ -155,7 +155,10 @@ async def password_reset_confirm_endpoint(
 
 
 @router.get("/users", response_model=list[UserRead])
-async def get_users(session: AsyncSession = Depends(get_db)) -> list[UserRead]:
+async def get_users(
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> list[UserRead]:
     users = await list_users(session)
     return [
         UserRead(

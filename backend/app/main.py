@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import decode_token, settings
 from app.database import AsyncSessionLocal, create_db_and_tables
+from app.errors import register_error_handlers
 from app.modules.admin.router import router as admin_router
 from app.modules.ai.router import router as ai_router
 from app.modules.auth.router import router as auth_router
@@ -50,6 +51,8 @@ app = FastAPI(
     openapi_url="/openapi.json",
     lifespan=lifespan,
 )
+
+register_error_handlers(app)
 
 realtime_gateway = RealtimeGateway()
 presence_service = PresenceService()
@@ -133,6 +136,7 @@ async def verify_subscription_access(
 
 
 @app.websocket("/ws")
+@app.websocket("/api/v1/realtime/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     # 1. Require verified authentication BEFORE accepting WebSocket connections
     token = websocket.query_params.get("token")

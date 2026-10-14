@@ -11,7 +11,14 @@ from app.core.tenancy.context import ensure_tenant_boundaries
 from app.dependencies import get_current_user, get_db
 from app.modules.channels.models import Channel, ChannelMember
 from app.modules.messages.schemas import MessageCreate, MessageRead, MessageUpdate
-from app.modules.messages.service import create_message, delete_message, list_messages, update_message
+from app.modules.messages.service import (
+    create_message,
+    delete_message,
+    list_messages,
+    list_pinned_messages,
+    toggle_pin_message,
+    update_message,
+)
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
@@ -62,6 +69,7 @@ async def get_messages(
             body=message.body,
             thread_id=message.thread_id,
             client_message_id=message.client_message_id,
+            is_pinned=getattr(message, "is_pinned", False),
             created_at=message.created_at,
             updated_at=message.updated_at,
         )
@@ -137,6 +145,7 @@ async def create_message_endpoint(
         body=message.body,
         thread_id=message.thread_id,
         client_message_id=message.client_message_id,
+        is_pinned=getattr(message, "is_pinned", False),
         created_at=message.created_at,
         updated_at=message.updated_at,
     )
@@ -175,6 +184,7 @@ async def update_message_endpoint(
                 "channel_id": updated.channel_id,
                 "author_id": updated.author_id,
                 "body": updated.body,
+                "is_pinned": getattr(updated, "is_pinned", False),
                 "updated_at": updated.updated_at.isoformat() if updated.updated_at else None,
             },
             channel=updated.channel_id,
@@ -191,9 +201,118 @@ async def update_message_endpoint(
         body=updated.body,
         thread_id=updated.thread_id,
         client_message_id=updated.client_message_id,
+        is_pinned=getattr(updated, "is_pinned", False),
         created_at=updated.created_at,
         updated_at=updated.updated_at,
     )
+
+
+@router.post("/{message_id}/pin", response_model=MessageRead)
+async def pin_message_endpoint(
+    message_id: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> MessageRead:
+    require_permission(current_user, "message.create")
+    pinned = await toggle_pin_message(session, message_id=message_id, pin=True)
+    if not pinned:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+
+    try:
+        from app.main import realtime_gateway
+        await realtime_gateway.broadcast(
+            "message.pinned",
+            {
+                "message_id": pinned.id,
+                "workspace_id": pinned.workspace_id,
+                "channel_id": pinned.channel_id,
+                "is_pinned": True,
+            },
+            channel=pinned.channel_id,
+        )
+    except Exception:
+        pass
+
+    return MessageRead(
+        id=pinned.id,
+        workspace_id=pinned.workspace_id,
+        channel_id=pinned.channel_id,
+        author_id=pinned.author_id,
+        sequence=pinned.sequence,
+        body=pinned.body,
+        thread_id=pinned.thread_id,
+        client_message_id=pinned.client_message_id,
+        is_pinned=pinned.is_pinned,
+        created_at=pinned.created_at,
+        updated_at=pinned.updated_at,
+    )
+
+
+@router.delete("/{message_id}/pin", response_model=MessageRead)
+async def unpin_message_endpoint(
+    message_id: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> MessageRead:
+    require_permission(current_user, "message.create")
+    unpinned = await toggle_pin_message(session, message_id=message_id, pin=False)
+    if not unpinned:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+
+    try:
+        from app.main import realtime_gateway
+        await realtime_gateway.broadcast(
+            "message.unpinned",
+            {
+                "message_id": unpinned.id,
+                "workspace_id": unpinned.workspace_id,
+                "channel_id": unpinned.channel_id,
+                "is_pinned": False,
+            },
+            channel=unpinned.channel_id,
+        )
+    except Exception:
+        pass
+
+    return MessageRead(
+        id=unpinned.id,
+        workspace_id=unpinned.workspace_id,
+        channel_id=unpinned.channel_id,
+        author_id=unpinned.author_id,
+        sequence=unpinned.sequence,
+        body=unpinned.body,
+        thread_id=unpinned.thread_id,
+        client_message_id=unpinned.client_message_id,
+        is_pinned=unpinned.is_pinned,
+        created_at=unpinned.created_at,
+        updated_at=unpinned.updated_at,
+    )
+
+
+@router.get("/pinned/channel/{channel_id}", response_model=list[MessageRead])
+async def get_pinned_messages_endpoint(
+    channel_id: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> list[MessageRead]:
+    require_permission(current_user, "message.read")
+    messages = await list_pinned_messages(session, channel_id=channel_id)
+    return [
+        MessageRead(
+            id=m.id,
+            workspace_id=m.workspace_id,
+            channel_id=m.channel_id,
+            author_id=m.author_id,
+            sequence=m.sequence,
+            body=m.body,
+            thread_id=m.thread_id,
+            client_message_id=m.client_message_id,
+            is_pinned=m.is_pinned,
+            created_at=m.created_at,
+            updated_at=m.updated_at,
+        )
+        for m in messages
+    ]
 
 
 @router.delete("/{message_id}")
@@ -232,3 +351,4 @@ async def delete_message_endpoint(
         pass
 
     return {"status": "ok", "deleted": True, "message_id": message_id}
+

@@ -17,3 +17,22 @@ class WorkspaceRead(BaseModel):
     name: str
     slug: str
     created_at: datetime
+
+
+class WorkspaceMemberAdd(BaseModel):
+    user_id: str
+    role: str = "member"
+
+
+class WorkspaceMemberRead(BaseModel):
+    id: str
+    workspace_id: str
+    user_id: str
+    role: str
+    joined_at: datetime
+
+
+class WorkspaceInvite(BaseModel):
+    email: str
+    role: str = "member"
+

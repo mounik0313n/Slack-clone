@@ -160,3 +160,28 @@ async def delete_message(
     await session.commit()
     return message
 
+
+async def toggle_pin_message(
+    session: AsyncSession,
+    *,
+    message_id: str,
+    pin: bool | None = None,
+) -> Message | None:
+    message = await session.get(Message, message_id)
+    if not message:
+        return None
+    message.is_pinned = not message.is_pinned if pin is None else pin
+    await session.commit()
+    await session.refresh(message)
+    return message
+
+
+async def list_pinned_messages(
+    session: AsyncSession,
+    channel_id: str,
+) -> list[Message]:
+    result = await session.execute(
+        select(Message).where(Message.channel_id == channel_id, Message.is_pinned == True).order_by(Message.sequence.asc())  # noqa: E712
+    )
+    return list(result.scalars().all())
+

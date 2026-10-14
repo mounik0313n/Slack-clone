@@ -46,3 +46,4 @@ minio_data/
 opensearch_data/
 *.sqlite3
 .neon
+uploads/
