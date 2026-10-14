@@ -10,8 +10,8 @@ from app.core.permissions.authorization import require_permission
 from app.core.tenancy.context import ensure_tenant_boundaries
 from app.dependencies import get_current_user, get_db
 from app.modules.channels.models import Channel, ChannelMember
-from app.modules.messages.schemas import MessageCreate, MessageRead
-from app.modules.messages.service import create_message, list_messages
+from app.modules.messages.schemas import MessageCreate, MessageRead, MessageUpdate
+from app.modules.messages.service import create_message, delete_message, list_messages, update_message
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
@@ -20,6 +20,8 @@ router = APIRouter(prefix="/messages", tags=["messages"])
 async def get_messages(
     channel_id: str | None = None,
     thread_id: str | None = None,
+    limit: int = Query(default=100, ge=1, le=200),
+    before_sequence: int | None = Query(default=None),
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ) -> list[MessageRead]:
@@ -43,7 +45,13 @@ async def get_messages(
                 if not is_member and current_user.get("role") != "admin":
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to private channel")
 
-    messages = await list_messages(session, channel_id=channel_id, thread_id=thread_id)
+    messages = await list_messages(
+        session,
+        channel_id=channel_id,
+        thread_id=thread_id,
+        limit=limit,
+        before_sequence=before_sequence,
+    )
     return [
         MessageRead(
             id=message.id,
@@ -132,3 +140,95 @@ async def create_message_endpoint(
         created_at=message.created_at,
         updated_at=message.updated_at,
     )
+
+
+@router.patch("/{message_id}", response_model=MessageRead)
+async def update_message_endpoint(
+    message_id: str,
+    payload: MessageUpdate,
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> MessageRead:
+    require_permission(current_user, "message.create")
+    is_admin = current_user.get("role") == "admin"
+    try:
+        updated = await update_message(
+            session,
+            message_id=message_id,
+            body=payload.body,
+            actor_id=current_user["user_id"],
+            is_admin=is_admin,
+        )
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot edit another user's message")
+
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+
+    try:
+        from app.main import realtime_gateway
+        await realtime_gateway.broadcast(
+            "message.updated",
+            {
+                "message_id": updated.id,
+                "workspace_id": updated.workspace_id,
+                "channel_id": updated.channel_id,
+                "author_id": updated.author_id,
+                "body": updated.body,
+                "updated_at": updated.updated_at.isoformat() if updated.updated_at else None,
+            },
+            channel=updated.channel_id,
+        )
+    except Exception:
+        pass
+
+    return MessageRead(
+        id=updated.id,
+        workspace_id=updated.workspace_id,
+        channel_id=updated.channel_id,
+        author_id=updated.author_id,
+        sequence=updated.sequence,
+        body=updated.body,
+        thread_id=updated.thread_id,
+        client_message_id=updated.client_message_id,
+        created_at=updated.created_at,
+        updated_at=updated.updated_at,
+    )
+
+
+@router.delete("/{message_id}")
+async def delete_message_endpoint(
+    message_id: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> dict[str, str | bool]:
+    require_permission(current_user, "message.create")
+    is_admin = current_user.get("role") == "admin"
+    try:
+        deleted = await delete_message(
+            session,
+            message_id=message_id,
+            actor_id=current_user["user_id"],
+            is_admin=is_admin,
+        )
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot delete another user's message")
+
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+
+    try:
+        from app.main import realtime_gateway
+        await realtime_gateway.broadcast(
+            "message.deleted",
+            {
+                "message_id": deleted.id,
+                "workspace_id": deleted.workspace_id,
+                "channel_id": deleted.channel_id,
+            },
+            channel=deleted.channel_id,
+        )
+    except Exception:
+        pass
+
+    return {"status": "ok", "deleted": True, "message_id": message_id}

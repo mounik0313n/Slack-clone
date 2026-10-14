@@ -110,12 +110,53 @@ async def list_messages(
     session: AsyncSession,
     channel_id: str | None = None,
     thread_id: str | None = None,
+    limit: int = 100,
+    before_sequence: int | None = None,
 ) -> list[Message]:
     query = select(Message)
     if channel_id:
         query = query.where(Message.channel_id == channel_id)
     if thread_id is not None:
         query = query.where(Message.thread_id == thread_id)
-    result = await session.execute(query.order_by(Message.sequence.asc()))
+    if before_sequence is not None:
+        query = query.where(Message.sequence < before_sequence)
+    result = await session.execute(query.order_by(Message.sequence.asc()).limit(limit))
     return list(result.scalars().all())
+
+
+async def update_message(
+    session: AsyncSession,
+    *,
+    message_id: str,
+    body: str,
+    actor_id: str,
+    is_admin: bool = False,
+) -> Message | None:
+    message = await session.get(Message, message_id)
+    if not message:
+        return None
+    if message.author_id != actor_id and not is_admin:
+        raise PermissionError("Cannot edit another user's message")
+    message.body = body
+    message.updated_at = datetime.now(timezone.utc)
+    await session.commit()
+    await session.refresh(message)
+    return message
+
+
+async def delete_message(
+    session: AsyncSession,
+    *,
+    message_id: str,
+    actor_id: str,
+    is_admin: bool = False,
+) -> Message | None:
+    message = await session.get(Message, message_id)
+    if not message:
+        return None
+    if message.author_id != actor_id and not is_admin:
+        raise PermissionError("Cannot delete another user's message")
+    await session.delete(message)
+    await session.commit()
+    return message
 

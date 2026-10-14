@@ -9,8 +9,8 @@ Every test recorded below was directly executed against the current codebase in 
 - **Command:** `$env:PYTHONPATH="backend"; pytest -v tests`
 - **Working Directory:** `c:\Users\mouni\OneDrive\Desktop\Slack_clone`
 - **Exit Status:** `0 (Success)`
-- **Execution Time:** `17.90s`
-- **Total Tests:** **69 passed, 0 failed**
+- **Execution Time:** `17.00s`
+- **Total Tests:** **71 passed, 0 failed**
 
 ### Breakdown by Test Module
 | Module | Passed | Failed | Focus Areas |
@@ -27,7 +27,7 @@ Every test recorded below was directly executed against the current codebase in 
 | `tests/test_multi_tenant_isolation.py` | 4 | 0 | Cross-workspace boundary enforcement, leak prevention |
 | `tests/test_read_state_and_presence.py` | 3 | 0 | Unread cursor advancement, user presence status |
 | `tests/test_reactions.py` | 5 | 0 | Reaction composite primary key, add/remove, toggle, deduplication |
-| `tests/test_realtime_flow.py` | 3 | 0 | Broadcast pipeline, event payload format, actor override |
+| `tests/test_realtime_flow.py` | 5 | 0 | Broadcast pipeline, created/updated/deleted events, idempotency |
 | `tests/test_threads_and_reactions.py` | 3 | 0 | Thread creation, reply count increment, reaction list |
 | `tests/test_search_api.py` | 1 | 0 | Message full-text search, snippet generation, channel filter |
 | `tests/test_files_api.py` | 3 | 0 | File attachment upload, 50MB size limit (HTTP 413), metadata lookup |
@@ -43,7 +43,7 @@ Every test recorded below was directly executed against the current codebase in 
 - **Command:** `npm.cmd test`
 - **Working Directory:** `c:\Users\mouni\OneDrive\Desktop\Slack_clone\frontend`
 - **Exit Status:** `0 (Success)`
-- **Execution Time:** `1.85s`
+- **Execution Time:** `1.51s`
 - **Total Tests:** **3 passed, 0 failed**
 
 ### Breakdown
@@ -59,11 +59,11 @@ Every test recorded below was directly executed against the current codebase in 
 - **Command:** `npm.cmd run build` (`tsc -b && vite build`)
 - **Working Directory:** `c:\Users\mouni\OneDrive\Desktop\Slack_clone\frontend`
 - **Exit Status:** `0 (Success)`
-- **Execution Time:** `1.84s`
+- **Execution Time:** `2.52s`
 - **Output Artifacts:**
   - `dist/index.html`: `0.49 kB`
-  - `dist/assets/index-MExyoOa7.css`: `17.41 kB` (gzip: 4.01 kB)
-  - `dist/assets/index-zcyNmFQx.js`: `323.25 kB` (gzip: 99.46 kB)
+  - `dist/assets/index-BU9lya2m.css`: `19.83 kB` (gzip: 4.47 kB)
+  - `dist/assets/index-aDU-1JdY.js`: `333.66 kB` (gzip: 102.11 kB)
 
 ---
 

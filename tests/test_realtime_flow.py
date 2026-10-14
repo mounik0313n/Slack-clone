@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.modules.messages.router import create_message_endpoint
-from app.modules.messages.schemas import MessageCreate
+from app.modules.messages.router import create_message_endpoint, delete_message_endpoint, update_message_endpoint
+from app.modules.messages.schemas import MessageCreate, MessageUpdate
 from app.realtime.gateway import RealtimeGateway
 from app.workers.event_worker import EventWorker
 
@@ -71,3 +71,64 @@ async def test_event_worker_ignores_duplicates() -> None:
 
     assert first["processed"] is True
     assert second["duplicate"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_message_endpoint_broadcasts_updated_event(monkeypatch) -> None:
+    fake_gateway = SimpleNamespace(broadcast=AsyncMock())
+    monkeypatch.setattr("app.main.realtime_gateway", fake_gateway, raising=False)
+
+    async def fake_update_message(session, *, message_id, body, actor_id, is_admin):
+        return SimpleNamespace(
+            id=message_id,
+            workspace_id="ws-1",
+            channel_id="ch-1",
+            author_id=actor_id,
+            sequence=7,
+            body=body,
+            thread_id=None,
+            client_message_id=None,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+
+    monkeypatch.setattr("app.modules.messages.router.update_message", fake_update_message)
+
+    current_user = {"user_id": "user-1", "workspace_id": "ws-1", "role": "member", "permissions": ["message.create"]}
+    res = await update_message_endpoint(
+        message_id="msg-1",
+        payload=MessageUpdate(body="updated text"),
+        session=object(),
+        current_user=current_user,
+    )
+
+    assert res.id == "msg-1"
+    assert res.body == "updated text"
+    fake_gateway.broadcast.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_delete_message_endpoint_broadcasts_deleted_event(monkeypatch) -> None:
+    fake_gateway = SimpleNamespace(broadcast=AsyncMock())
+    monkeypatch.setattr("app.main.realtime_gateway", fake_gateway, raising=False)
+
+    async def fake_delete_message(session, *, message_id, actor_id, is_admin):
+        return SimpleNamespace(
+            id=message_id,
+            workspace_id="ws-1",
+            channel_id="ch-1",
+            author_id=actor_id,
+        )
+
+    monkeypatch.setattr("app.modules.messages.router.delete_message", fake_delete_message)
+
+    current_user = {"user_id": "user-1", "workspace_id": "ws-1", "role": "member", "permissions": ["message.create"]}
+    res = await delete_message_endpoint(
+        message_id="msg-1",
+        session=object(),
+        current_user=current_user,
+    )
+
+    assert res["status"] == "ok"
+    assert res["deleted"] is True
+    fake_gateway.broadcast.assert_awaited_once()

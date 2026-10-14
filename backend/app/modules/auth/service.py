@@ -53,7 +53,9 @@ async def authenticate_user(session: AsyncSession, *, email: str, password: str)
         return None
 
 
-def issue_tokens_for_user(user: User) -> dict[str, str | int]:
+def issue_tokens_for_user(user: User, workspace_id: str = "ws-default") -> dict[str, str | int]:
+    is_admin = user.id == "user-1" or user.username in ("admin", "zoe")
+    role = "admin" if is_admin else "member"
     permissions = [
         "workspace.read",
         "channel.read",
@@ -62,13 +64,17 @@ def issue_tokens_for_user(user: User) -> dict[str, str | int]:
         "message.read",
         "member.read",
     ]
+    if is_admin:
+        permissions.extend(["workspace.manage", "audit.read"])
+
     access_token = create_token(
         user.id,
         token_type="access",
         expires_minutes=settings.jwt_access_token_expire_minutes,
         email=user.email,
-        role="member",
-        roles=["member"],
+        workspace_id=workspace_id,
+        role=role,
+        roles=[role],
         permissions=permissions,
     )
     refresh_token = create_token(
@@ -76,8 +82,9 @@ def issue_tokens_for_user(user: User) -> dict[str, str | int]:
         token_type="refresh",
         expires_minutes=settings.jwt_refresh_token_expire_days * 24 * 60,
         email=user.email,
-        role="member",
-        roles=["member"],
+        workspace_id=workspace_id,
+        role=role,
+        roles=[role],
         permissions=permissions,
     )
     return {

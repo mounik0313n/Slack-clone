@@ -14,6 +14,10 @@ class MessageCreate(BaseModel):
     client_message_id: str | None = None
 
 
+class MessageUpdate(BaseModel):
+    body: str = Field(min_length=1, max_length=20000)
+
+
 class MessageRead(BaseModel):
     id: str
     workspace_id: str

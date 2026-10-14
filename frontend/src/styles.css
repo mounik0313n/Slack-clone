@@ -1186,3 +1186,163 @@ button, input, textarea, select {
   .channels-sidebar { display: none; }
   .thread-drawer { display: none; }
 }
+
+/* Auth Modal */
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--slack-border);
+  margin-bottom: 16px;
+}
+.auth-tab-btn {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.auth-tab-btn.active {
+  color: var(--slack-sidebar-active);
+  border-bottom-color: var(--slack-sidebar-active);
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.auth-form-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: -6px;
+}
+
+/* Admin Console Modal */
+.admin-modal-card {
+  width: 780px;
+  max-width: 95vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.admin-stat-card {
+  background: #fbf9fb;
+  border: 1px solid var(--slack-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  text-align: center;
+}
+.admin-stat-val {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--slack-sidebar-active);
+}
+.admin-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.admin-table-wrap {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--slack-border);
+  border-radius: var(--radius-sm);
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.admin-table th, .admin-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--slack-border-subtle);
+  text-align: left;
+}
+.admin-table th {
+  background: #f8f6f8;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+}
+.admin-role-select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--slack-border);
+  font-size: 0.8rem;
+  background: #fff;
+}
+
+/* Typing Indicator */
+.typing-indicator-bar {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 2px 20px;
+  min-height: 18px;
+}
+
+/* Message Actions */
+.msg-edit-wrap {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.msg-edit-textarea {
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--slack-border-composer);
+  font-size: 0.9rem;
+}
+.msg-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Attachment Card */
+.msg-attachment-box {
+  margin-top: 6px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--slack-border);
+  background: #fcfbfe;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+}
+.msg-attachment-icon {
+  font-size: 1.5rem;
+}
+
+/* AI Copilot Card */
+.ai-summary-card {
+  background: linear-gradient(135deg, #f9f5fa, #f4eef5);
+  border: 1px solid #d9c7d7;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 12px;
+}
+.ai-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  color: #522653;
+  margin-bottom: 8px;
+}
