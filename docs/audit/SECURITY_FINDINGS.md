@@ -1,7 +1,7 @@
 # Security Findings & Remediation Report
 
 ## Executive Summary
-A comprehensive security and data-integrity audit was conducted across the backend API, real-time gateway, authentication pipeline, and database interaction layer. A total of 7 security findings were identified, ranging from Critical to Low. All findings have been remediated and verified with automated tests.
+A comprehensive security and data-integrity audit was conducted across the backend API, real-time gateway, authentication pipeline, role-based access controls (RBAC), and database interaction layer. A total of 11 security findings were identified, ranging from Critical to Low. All findings have been remediated and verified with automated regression test suites.
 
 ---
 
@@ -32,13 +32,13 @@ A comprehensive security and data-integrity audit was conducted across the backe
 
 ### SEC-003 (HIGH): Unauthenticated WebSocket Subscriptions
 - **Component:** `backend/app/main.py`, `backend/app/realtime/gateway.py`
-- **Vulnerability:** The `/ws` endpoint permitted connections with an unverified `client_id` query parameter without requiring JWT validation.
-- **Impact:** Eavesdropping on real-time channel events without authentication.
+- **Vulnerability:** The `/ws` endpoint permitted connections with an unverified `client_id` query parameter without requiring JWT validation. Subscriptions to private channels or cross-workspace channels were not validated against database memberships.
+- **Impact:** Eavesdropping on real-time channel events without authentication or cross-tenant data access.
 - **Remediation:**
-  1. Upgraded `/ws` endpoint to accept an optional `token` query parameter or a runtime `authenticate` frame.
-  2. Integrated `decode_token()` to authenticate claims and check `is_token_revoked()`.
-  3. Rejected expired or revoked tokens with `AUTH_FAILED` protocol events.
-- **Verification:** Automated tests in `tests/test_websocket_realtime_auth.py`.
+  1. Upgraded `/ws` endpoint to require verified `token` parameter on connection; immediately terminates connection with `WS_1008_POLICY_VIOLATION` if missing, invalid, or revoked.
+  2. Bound client identity and workspace strictly to server-verified claims.
+  3. Authorizes every channel subscription via `verify_subscription_access()` against persisted channel and conversation memberships.
+- **Verification:** Automated tests in `tests/test_websocket_realtime_auth.py` and `tests/test_websocket_security_regression.py`.
 - **Status:** **FIXED & VERIFIED**
 
 ---
@@ -80,6 +80,55 @@ A comprehensive security and data-integrity audit was conducted across the backe
 - **Component:** `backend/migrations/`, `backend/alembic.ini`
 - **Vulnerability:** Application relied solely on runtime DDL `create_db_and_tables()` in lifespan, which cannot safely manage schema rollbacks or alter statements in staging and production.
 - **Impact:** Uncontrolled database evolution and risk of deployment drift.
-- **Remediation:** Initialized Alembic migrations directory with async database engine support and established `0001_initial_schema.py` baseline.
-- **Verification:** Validated Alembic files syntax and async connection pooling.
+- **Remediation:** Initialized Alembic migrations directory with async database engine support and established `0001_initial_schema.py` baseline and `0002_workspace_members_audit_logs.py`.
+- **Verification:** Validated Alembic files syntax and SQL upgrade scripts (`alembic upgrade head --sql`).
+- **Status:** **FIXED & VERIFIED**
+
+---
+
+### SEC-008 (HIGH): Unauthenticated Admin Endpoints & Simulated Audit Logging
+- **Component:** `backend/app/modules/admin/router.py`, `backend/app/modules/admin/models.py`
+- **Vulnerability:** Admin routes `/api/v1/admin/audit-logs`, `/api/v1/admin/members`, `/api/v1/admin/roles`, and `/api/v1/admin/stats` utilized optional authentication dependencies and in-memory mock lists (`_audit_logs`). Role assignments were not committed to the database.
+- **Impact:** Unauthorized callers could observe administrative logs or perform unpersisted role changes without an immutable audit trail.
+- **Remediation:**
+  1. Converted all admin endpoints to use `Depends(get_current_user)` with mandatory `require_permission` checks (`audit.read`, `workspace.manage`).
+  2. Created dedicated `AuditLog` database model and Alembic migration `0002_workspace_members_audit_logs`.
+  3. Persisted role mutations and audit events atomically in the database session (`session.commit()`).
+- **Verification:** Automated tests in `tests/test_admin_security_regression.py`.
+- **Status:** **FIXED & VERIFIED**
+
+---
+
+### SEC-009 (HIGH): Unbounded Member Enumeration Across Workspaces
+- **Component:** `backend/app/modules/admin/router.py`
+- **Vulnerability:** `/api/v1/admin/members` queried all users in the system (`select(User)`) without joining on `WorkspaceMember` for the requested workspace.
+- **Impact:** Cross-tenant user enumeration and leakage of user identities across different organizations.
+- **Remediation:** Scoped member queries strictly to the caller's authorized workspace via `WorkspaceMember` inner join and `ensure_tenant_boundaries`.
+- **Verification:** Automated test `tests/test_admin_security_regression.py::test_member_enumeration_prevention_scoped_to_workspace`.
+- **Status:** **FIXED & VERIFIED**
+
+---
+
+### SEC-010 (HIGH): Information Disclosure in Search, AI Summarize, and Sync Endpoints
+- **Component:** `backend/app/modules/search/router.py`, `backend/app/modules/ai/router.py`, `backend/app/modules/sync/router.py`
+- **Vulnerability:** Search returned messages matching terms without checking if the target channel was private or belonged to another workspace. AI summarization accepted private channel IDs without membership verification.
+- **Impact:** Non-member users could search or summarize private channel conversations, violating privacy boundaries.
+- **Remediation:**
+  1. Enforced tenant boundaries on search, sync, and AI summarization.
+  2. Implemented subquery filters restricting search results to public channels and private channels where caller has an active `ChannelMember` record (or is admin).
+  3. Verified channel privacy and caller membership prior to triggering AI summarization.
+- **Verification:** Automated tests in `tests/test_endpoints_auth_audit_regression.py`.
+- **Status:** **FIXED & VERIFIED**
+
+---
+
+### SEC-011 (MEDIUM): Privilege Escalation & Last Administrator Lockout
+- **Component:** `backend/app/modules/admin/router.py`
+- **Vulnerability:** Any caller could attempt to assign administrative privileges, and the sole administrator of a workspace could demote themselves, leaving the workspace unmanageable.
+- **Impact:** Privilege escalation by unauthorized members and irrecoverable workspace lockout.
+- **Remediation:**
+  1. Restated role changes to valid roles (`admin`, `member`, `guest`).
+  2. Enforced that only existing administrators can execute role mutations (`current_user.get("role") == "admin"`).
+  3. Prevented demotion of the last administrator in a workspace (`admin_count <= 1` check returns HTTP 400).
+- **Verification:** Automated tests in `tests/test_admin_security_regression.py::test_unauthorized_role_change_and_privilege_escalation`.
 - **Status:** **FIXED & VERIFIED**

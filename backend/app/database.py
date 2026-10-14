@@ -28,10 +28,9 @@ async def seed_defaults() -> None:
         try:
             from datetime import datetime, timezone
             from sqlalchemy import select
-            from app.modules.organizations.models import Organization
-            from app.modules.workspaces.models import Workspace
             from app.modules.channels.models import Channel
-            from app.modules.auth.models import User
+            from app.modules.organizations.models import Organization
+            from app.modules.workspaces.models import Workspace, WorkspaceMember
 
             res = await session.execute(select(Organization).limit(1))
             if not res.scalars().first():
@@ -41,6 +40,8 @@ async def seed_defaults() -> None:
                 session.add(user)
                 ws = Workspace(id="ws-default", organization_id="org-default", name="General", slug="general", created_at=datetime.now(timezone.utc))
                 session.add(ws)
+                wm = WorkspaceMember(id="wm-1", workspace_id="ws-default", user_id="user-1", role="admin", joined_at=datetime.now(timezone.utc))
+                session.add(wm)
                 ch1 = Channel(id="ch-general", workspace_id="ws-default", name="general", topic="Company-wide announcements and team chatter", is_private=False, is_archived=False)
                 ch2 = Channel(id="ch-random", workspace_id="ws-default", name="random", topic="Random chats, watercooler banter, and fun", is_private=False, is_archived=False)
                 session.add(ch1)

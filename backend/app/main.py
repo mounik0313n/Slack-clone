@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import decode_token, settings
 from app.database import AsyncSessionLocal, create_db_and_tables
@@ -12,7 +14,9 @@ from app.modules.admin.router import router as admin_router
 from app.modules.ai.router import router as ai_router
 from app.modules.auth.router import router as auth_router
 from app.modules.auth.service import is_token_revoked
+from app.modules.channels.models import Channel, ChannelMember
 from app.modules.channels.router import router as channels_router
+from app.modules.conversations.models import Conversation, ConversationMember
 from app.modules.conversations.router import router as conversations_router
 from app.modules.devices.router import router as devices_router
 from app.modules.files.router import router as files_router
@@ -85,20 +89,96 @@ async def health_ready() -> dict[str, str]:
     return {"status": "ready"}
 
 
+async def verify_subscription_access(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    workspace_id: str,
+    target_id: str,
+    user_role: str,
+) -> bool:
+    # 1. Direct personal notifications topic
+    if target_id == user_id or target_id == f"user:{user_id}":
+        return True
+
+    # 2. Channel lookup & membership check
+    channel = await session.get(Channel, target_id)
+    if channel:
+        if channel.workspace_id != workspace_id:
+            return False
+        if not channel.is_private:
+            return True
+        cm = await session.scalar(
+            select(ChannelMember).where(
+                ChannelMember.channel_id == target_id,
+                ChannelMember.user_id == user_id,
+            )
+        )
+        return cm is not None or user_role == "admin"
+
+    # 3. Conversation lookup (DMs / Group DMs)
+    conv = await session.get(Conversation, target_id)
+    if conv:
+        if conv.workspace_id != workspace_id:
+            return False
+        mem = await session.scalar(
+            select(ConversationMember).where(
+                ConversationMember.conversation_id == target_id,
+                ConversationMember.user_id == user_id,
+            )
+        )
+        return mem is not None
+
+    return False
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
-    client_id = websocket.query_params.get("client_id", "anonymous")
+    # 1. Require verified authentication BEFORE accepting WebSocket connections
     token = websocket.query_params.get("token")
-    if token and not is_token_revoked(token):
-        try:
-            claims = decode_token(token)
-            if claims and claims.get("type") == "access":
-                client_id = claims.get("sub", client_id)
-        except Exception:
-            pass
+    if not token:
+        auth_header = websocket.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+        elif websocket.headers.get("sec-websocket-protocol"):
+            token = websocket.headers.get("sec-websocket-protocol").strip()
+
+    if not token:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication token required")
+        return
+
+    if is_token_revoked(token):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Token has been revoked")
+        return
+
+    try:
+        claims = decode_token(token)
+    except Exception:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid or expired token")
+        return
+
+    if not claims or claims.get("type") != "access":
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Access token required")
+        return
+
+    client_id = str(claims.get("sub", ""))
+    if not client_id:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Subject claim missing")
+        return
+
+    workspace_id = str(claims.get("workspace_id") or "ws-default")
+    role = str(claims.get("role") or "member")
 
     await realtime_gateway.connect(websocket, client_id)
-    await websocket.send_json({"event_type": "connected", "payload": {"status": "ok", "client_id": client_id}})
+    await websocket.send_json({
+        "event_type": "connected",
+        "payload": {
+            "status": "ok",
+            "client_id": client_id,
+            "workspace_id": workspace_id,
+            "role": role,
+        },
+    })
     try:
         while True:
             raw_message = await websocket.receive_text()
@@ -109,27 +189,35 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
             event_type = payload.get("event_type")
 
-            if event_type == "authenticate":
-                auth_token = payload.get("token") or payload.get("payload", {}).get("token")
-                if auth_token and not is_token_revoked(auth_token):
-                    try:
-                        claims = decode_token(auth_token)
-                        if claims and claims.get("type") == "access":
-                            client_id = claims.get("sub", client_id)
-                            await websocket.send_json({"event_type": "authenticated", "payload": {"status": "ok", "client_id": client_id}})
-                            continue
-                    except Exception:
-                        pass
-                await websocket.send_json({"event_type": "error", "payload": {"code": "AUTH_FAILED", "message": "Invalid or revoked token"}})
-                continue
-
             if event_type == "subscribe":
                 channels = payload.get("channels", [])
-                for channel in channels:
-                    realtime_gateway.subscribe(client_id, str(channel))
-                await websocket.send_json({"event_type": "subscribed", "payload": {"channels": channels}})
-                replay_events = await realtime_gateway.resume(client_id, [str(channel) for channel in channels])
-                await websocket.send_json({"event_type": "resume", "payload": {"channels": channels, "events": replay_events}})
+                authorized_channels: list[str] = []
+                async with AsyncSessionLocal() as db_session:
+                    for ch in channels:
+                        ch_str = str(ch)
+                        is_auth = await verify_subscription_access(
+                            db_session,
+                            user_id=client_id,
+                            workspace_id=workspace_id,
+                            target_id=ch_str,
+                            user_role=role,
+                        )
+                        if is_auth:
+                            realtime_gateway.subscribe(client_id, ch_str)
+                            authorized_channels.append(ch_str)
+                        else:
+                            await websocket.send_json({
+                                "event_type": "subscription_error",
+                                "payload": {
+                                    "code": "FORBIDDEN",
+                                    "channel": ch_str,
+                                    "message": f"User {client_id} is not authorized to subscribe to {ch_str}",
+                                },
+                            })
+
+                await websocket.send_json({"event_type": "subscribed", "payload": {"channels": authorized_channels}})
+                replay_events = await realtime_gateway.resume(client_id, authorized_channels)
+                await websocket.send_json({"event_type": "resume", "payload": {"channels": authorized_channels, "events": replay_events}})
                 continue
 
             if event_type == "unsubscribe":
@@ -141,30 +229,35 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
             if event_type in {"resume", "replay"}:
                 channels = payload.get("channels", []) or payload.get("payload", {}).get("channels", [])
-                replay_events = await realtime_gateway.resume(client_id, [str(channel) for channel in channels])
+                authorized_channels = []
+                async with AsyncSessionLocal() as db_session:
+                    for ch in channels:
+                        ch_str = str(ch)
+                        if await verify_subscription_access(db_session, user_id=client_id, workspace_id=workspace_id, target_id=ch_str, user_role=role):
+                            authorized_channels.append(ch_str)
+
+                replay_events = await realtime_gateway.resume(client_id, authorized_channels)
                 if not replay_events:
                     await websocket.send_json({
                         "event_type": "sync.required",
                         "type": "sync.required",
                         "payload": {
                             "reason": "EVENT_HISTORY_UNAVAILABLE",
-                            "workspace_id": payload.get("workspace_id") or payload.get("payload", {}).get("workspace_id"),
-                            "channels": channels,
+                            "workspace_id": workspace_id,
+                            "channels": authorized_channels,
                         },
                     })
                 else:
-                    await websocket.send_json({"event_type": "resume", "payload": {"channels": channels, "events": replay_events}})
+                    await websocket.send_json({"event_type": "resume", "payload": {"channels": authorized_channels, "events": replay_events}})
                 continue
 
             if event_type == "sync.request" or payload.get("type") == "sync.request":
-                user_id = payload.get("user_id") or client_id
-                workspace_id = payload.get("workspace_id") or payload.get("payload", {}).get("workspace_id") or "ws-default"
                 cursor = payload.get("cursor") or payload.get("payload", {}).get("cursor")
                 conversation_ids = payload.get("conversations") or payload.get("payload", {}).get("conversations") or []
                 async with AsyncSessionLocal() as db_session:
                     snapshot = await collect_sync_snapshot(
                         db_session,
-                        user_id=user_id,
+                        user_id=client_id,
                         workspace_id=workspace_id,
                         conversation_ids=[str(conv) for conv in conversation_ids] if conversation_ids else None,
                         cursor=str(cursor) if cursor is not None else None,
@@ -182,14 +275,15 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 continue
 
             if event_type == "presence":
-                status = str(payload.get("payload", {}).get("status", "online")).lower()
-                presence_service.set_presence(client_id, status)
-                await realtime_gateway.broadcast("presence.changed", {"client_id": client_id, "status": status})
+                status_val = str(payload.get("payload", {}).get("status", "online")).lower()
+                presence_service.set_presence(client_id, status_val)
+                await realtime_gateway.broadcast("presence.changed", {"client_id": client_id, "status": status_val})
                 continue
 
             if event_type in {"typing.start", "typing.stop"}:
                 event_name = "typing.started" if event_type == "typing.start" else "typing.stopped"
-                await realtime_gateway.broadcast(event_name, {"client_id": client_id, **payload.get("payload", {})})
+                target_channel = payload.get("payload", {}).get("channel_id")
+                await realtime_gateway.broadcast(event_name, {"client_id": client_id, **payload.get("payload", {})}, channel=target_channel)
                 continue
 
             await websocket.send_json({"event_type": "echo", "payload": {"message": payload}})

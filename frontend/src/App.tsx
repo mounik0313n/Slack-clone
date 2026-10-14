@@ -66,23 +66,24 @@ type ReactionItem = {
 const DEFAULT_WORKSPACE_ID = 'ws-default';
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
-function getRealtimeUrl(clientId: string) {
+function getRealtimeUrl(clientId: string, token?: string | null) {
+  const tokenQuery = token ? `&token=${encodeURIComponent(token)}` : '';
   if (import.meta.env.VITE_WS_URL) {
     const base = String(import.meta.env.VITE_WS_URL).replace(/\/+$/, '');
-    return `${base}?client_id=${clientId}`;
+    return `${base}?client_id=${clientId}${tokenQuery}`;
   }
   if (API_BASE && API_BASE.startsWith('http')) {
     try {
       const url = new URL(API_BASE);
       const wsProto = url.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${wsProto}//${url.host}/ws?client_id=${clientId}`;
+      return `${wsProto}//${url.host}/ws?client_id=${clientId}${tokenQuery}`;
     } catch {
       // ignore
     }
   }
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
   const port = window.location.port ? `:${window.location.port}` : '';
-  return `${protocol}://${window.location.hostname}${port}/ws?client_id=${clientId}`;
+  return `${protocol}://${window.location.hostname}${port}/ws?client_id=${clientId}${tokenQuery}`;
 }
 
 const EMOJI_LIST = ['👍', '❤️', '😂', '🚀', '🔥', '🎉', '💡', '🤖', '☕', '👀', '💯', '🙌'];
@@ -189,7 +190,8 @@ export default function App() {
   useEffect(() => {
     const client = new RealtimeClient();
     const unsubStatus = client.onStatusChange((status) => setConnStatus(status));
-    client.connect(getRealtimeUrl(currentUser.id));
+    const token = localStorage.getItem('access_token');
+    client.connect(getRealtimeUrl(currentUser.id, token));
 
     client.on('message.created', (event: RealtimeEvent) => {
       const p = event.payload;

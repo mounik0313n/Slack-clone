@@ -7,14 +7,15 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, get_optional_current_user
+from app.core.permissions.authorization import require_permission
+from app.core.tenancy.context import ensure_tenant_boundaries
+from app.dependencies import get_current_user, get_db
 from app.modules.files.models import FileAttachment
 from app.modules.files.schemas import FileRead, FileUploadResponse
 
 router = APIRouter(prefix="/files", tags=["files"])
 
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50MB limit
-ALLOWED_MIME_PREFIXES = ("image/", "video/", "audio/", "text/", "application/pdf", "application/json", "application/zip")
 
 
 @router.post("/upload", response_model=FileUploadResponse, status_code=status.HTTP_201_CREATED)
@@ -22,8 +23,12 @@ async def upload_file_endpoint(
     file: UploadFile = File(...),
     workspace_id: str = "ws-default",
     session: AsyncSession = Depends(get_db),
-    current_user: dict | None = Depends(get_optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ) -> FileUploadResponse:
+    # 1. Require message.create permission & verify tenant boundaries
+    require_permission(current_user, "message.create")
+    ensure_tenant_boundaries(current_user, workspace_id=workspace_id)
+
     content = await file.read()
     if len(content) > MAX_FILE_SIZE_BYTES:
         raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail="File exceeds maximum 50MB size limit")
@@ -31,7 +36,7 @@ async def upload_file_endpoint(
     content_type = file.content_type or "application/octet-stream"
     safe_filename = os.path.basename(file.filename or "upload.bin")
     file_id = f"file-{secrets.token_hex(8)}"
-    uploader_id = current_user["user_id"] if isinstance(current_user, dict) else "user-1"
+    uploader_id = current_user["user_id"]
 
     attachment = FileAttachment(
         id=file_id,
@@ -61,11 +66,16 @@ async def upload_file_endpoint(
 async def get_file_metadata_endpoint(
     file_id: str,
     session: AsyncSession = Depends(get_db),
-    current_user: dict | None = Depends(get_optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ) -> FileRead:
+    require_permission(current_user, "message.read")
+
     attachment = await session.get(FileAttachment, file_id)
     if not attachment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    # Enforce workspace isolation on file downloads
+    ensure_tenant_boundaries(current_user, workspace_id=attachment.workspace_id)
 
     return FileRead(
         id=attachment.id,

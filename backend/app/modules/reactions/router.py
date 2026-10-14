@@ -3,7 +3,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db, get_optional_current_user
+from app.core.permissions.authorization import require_permission
+from app.core.tenancy.context import ensure_tenant_boundaries
+from app.dependencies import get_current_user, get_db
 from app.modules.reactions.schemas import ReactionCreate, ReactionRead
 from app.modules.reactions.service import add_reaction, list_reactions, remove_reaction
 
@@ -16,7 +18,12 @@ async def get_reactions(
     channel_id: str | None = None,
     message_id: str | None = None,
     session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ) -> list[ReactionRead]:
+    require_permission(current_user, "message.read")
+    if workspace_id:
+        ensure_tenant_boundaries(current_user, workspace_id=workspace_id)
+
     reactions = await list_reactions(
         session,
         workspace_id=workspace_id,
@@ -41,9 +48,13 @@ async def get_reactions(
 async def create_reaction(
     payload: ReactionCreate,
     session: AsyncSession = Depends(get_db),
-    current_user: dict | None = Depends(get_optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ) -> ReactionRead:
-    user_id = current_user["user_id"] if isinstance(current_user, dict) else payload.user_id
+    require_permission(current_user, "message.create")
+    ensure_tenant_boundaries(current_user, workspace_id=payload.workspace_id)
+
+    # Actor identity strictly bound to authenticated token
+    user_id = current_user["user_id"]
 
     reaction = await add_reaction(
         session,
@@ -89,9 +100,13 @@ async def delete_reaction(
     workspace_id: str = "ws-default",
     channel_id: str = "ch-default",
     session: AsyncSession = Depends(get_db),
-    current_user: dict | None = Depends(get_optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ) -> dict[str, bool]:
-    if isinstance(current_user, dict) and current_user["user_id"] != user_id and current_user.get("role") != "admin":
+    require_permission(current_user, "message.create")
+    ensure_tenant_boundaries(current_user, workspace_id=workspace_id)
+
+    # Only reaction owner or workspace administrator can remove reaction
+    if current_user["user_id"] != user_id and current_user.get("role") != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot delete other user's reaction")
 
     removed = await remove_reaction(

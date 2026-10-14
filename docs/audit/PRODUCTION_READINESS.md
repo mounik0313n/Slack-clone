@@ -11,14 +11,14 @@
 
 | Verification Gate | Required Condition | Audit Outcome | Evidence |
 |---|---|---|---|
-| **Critical / High Security Findings** | 100% remediated and tested | **PASS** | SEC-001 (IDOR) and SEC-002 (Token replay) fixed; tests pass |
+| **Critical / High Security Findings** | 100% remediated and regression-tested | **PASS** | SEC-001 (IDOR), SEC-002 (Token replay), SEC-003 (WebSocket unauthenticated/unauthorized subscriptions), SEC-008 (Admin RBAC & audit logging), SEC-009 (Member enumeration), SEC-010 (Private data isolation in search/AI/sync), SEC-011 (Privilege escalation) all remediated and verified |
 | **Authentication & Token Rotation** | Single-use refresh token rotation, revocation check | **PASS** | `tests/test_auth_security.py` passes |
-| **Multi-Tenancy & Authorization** | Server-side actor derivation, strict workspace isolation | **PASS** | `tests/test_multi_tenant_isolation.py` passes |
-| **Message Persistence & Idempotency** | Atomic per-conversation sequencing, unique constraints | **PASS** | `tests/test_message_idempotency.py` passes |
-| **Real-Time Delivery & Subscriptions** | Filtered channel broadcasting, reconnect handling | **PASS** | `tests/test_websocket_realtime_auth.py` passes |
-| **Database Migrations** | Alembic versioned migrations initialized | **PASS** | `backend/migrations/` configured with async engine |
-| **Frontend Production Build** | Zero TypeScript compilation errors, optimized bundle | **PASS** | Vite built in 1.72s with zero warnings |
-| **Full Automated Test Suite** | All unit and integration tests passing | **PASS** | 54 backend + 3 frontend tests = 57 passing |
+| **Multi-Tenancy & Authorization** | Server-side actor derivation, strict workspace isolation | **PASS** | `tests/test_multi_tenant_isolation.py` & `tests/test_endpoints_auth_audit_regression.py` pass |
+| **Message Persistence & Idempotency** | Atomic per-conversation sequencing, unique constraints | **PASS** | `tests/test_message_idempotency.py` & `tests/test_message_sequence.py` pass |
+| **Real-Time Delivery & Subscriptions** | Filtered channel broadcasting, reconnect handling, membership-authorized subscriptions | **PASS** | `tests/test_websocket_realtime_auth.py` & `tests/test_websocket_security_regression.py` pass |
+| **Database Migrations** | Alembic versioned migrations initialized & verified | **PASS** | `backend/migrations/` configured with async engine; `0001_initial_schema` and `0002_workspace_members_audit_logs` compile clean transactional SQL DDL |
+| **Frontend Production Build** | Zero TypeScript compilation errors, optimized bundle | **PASS** | Vite built clean with zero type errors or warnings |
+| **Full Automated Test Suite** | All unit and integration tests passing | **PASS** | 69 backend + 3 frontend tests = **72 total passing** |
 | **Hosting & Cloud Infrastructure** | Active production endpoints operational | **PASS** | Vercel (Frontend) + Render (API) + Neon (Postgres) |
 
 ---
@@ -31,7 +31,8 @@
 | **Token Theft / Replay** | HIGH | LOW | Refresh tokens rotated on every use; replaying old tokens invalidates access. |
 | **Database Saturation** | MEDIUM | LOW | NullPool configuration prevents pooling conflicts in serverless / multi-worker environments. |
 | **Client Disconnections** | MEDIUM | LOW | IndexedDB offline mutation queue with exponential backoff flushes messages seamlessly upon reconnect. |
-| **Cross-Tenant Data Leak** | HIGH | LOW | Server-side validation strictly enforces matching `workspace_id` and `organization_id` claims. |
+| **Cross-Tenant Data Leak** | HIGH | LOW | Server-side validation strictly enforces matching `workspace_id` and `organization_id` claims, with subquery filtering on search, files, and AI endpoints. |
+| **Admin Privilege Escalation** | HIGH | LOW | Strict role enforcement; non-admins forbidden from modifying roles; last-administrator demotion prevented. |
 
 ---
 

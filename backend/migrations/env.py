@@ -9,8 +9,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from app.config import settings
 from app.database import Base
 # Import all models to ensure metadata is populated
+from app.modules.admin.models import AuditLog
 from app.modules.auth.models import User
-from app.modules.channels.models import Channel
+from app.modules.channels.models import Channel, ChannelMember
 from app.modules.conversations.models import Conversation
 from app.modules.devices.models import DeviceSession
 from app.modules.files.models import FileAttachment
@@ -21,7 +22,7 @@ from app.modules.organizations.models import Organization
 from app.modules.reactions.models import Reaction
 from app.modules.read_states.models import ReadState
 from app.modules.threads.models import Thread
-from app.modules.workspaces.models import Workspace
+from app.modules.workspaces.models import Workspace, WorkspaceMember
 
 config = context.config
 
@@ -55,10 +56,12 @@ async def run_async_migrations() -> None:
     configuration = config.get_section(config.config_ini_section) or {}
     configuration["sqlalchemy.url"] = settings.database_url
 
+    connect_args = {"ssl": True} if settings.database_use_ssl else {}
     connectable = async_engine_from_config(
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:

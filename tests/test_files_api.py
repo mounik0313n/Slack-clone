@@ -45,7 +45,7 @@ async def test_upload_file_endpoint_success() -> None:
         file=upload_file,
         workspace_id="ws-default",
         session=session,
-        current_user={"user_id": "user-uploader-1"},
+        current_user={"user_id": "user-uploader-1", "workspace_id": "ws-default", "permissions": ["message.create"]},
     )
 
     assert response.filename == "report.pdf"
@@ -71,7 +71,7 @@ async def test_upload_file_size_limit_rejection() -> None:
             file=upload_file,
             workspace_id="ws-default",
             session=session,
-            current_user={"user_id": "user-1"},
+            current_user={"user_id": "user-1", "workspace_id": "ws-default", "permissions": ["message.create"]},
         )
     assert exc_info.value.status_code == 413
 
@@ -89,11 +89,12 @@ async def test_get_file_metadata_found_and_not_found() -> None:
         created_at=datetime.now(timezone.utc),
     )
     session = MockFileSession(files={"file-123": attachment})
+    caller = {"user_id": "user-1", "workspace_id": "ws-default", "permissions": ["message.read"]}
 
-    meta = await get_file_metadata_endpoint("file-123", session=session, current_user=None)
+    meta = await get_file_metadata_endpoint("file-123", session=session, current_user=caller)
     assert meta.id == "file-123"
     assert meta.filename == "spec.json"
 
     with pytest.raises(HTTPException) as exc_info:
-        await get_file_metadata_endpoint("non-existent-id", session=session, current_user=None)
+        await get_file_metadata_endpoint("non-existent-id", session=session, current_user=caller)
     assert exc_info.value.status_code == 404

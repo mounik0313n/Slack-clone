@@ -48,7 +48,7 @@ async def test_search_messages_returns_matching_results_and_snippets() -> None:
         channel_id=None,
         limit=10,
         session=session,
-        current_user={"user_id": "user-1", "role": "member"},
+        current_user={"user_id": "user-1", "workspace_id": "ws-default", "role": "admin", "permissions": ["message.read"]},
     )
 
     assert response.query == "deploy"
