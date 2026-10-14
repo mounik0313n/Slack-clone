@@ -3,11 +3,15 @@ FROM python:3.13-slim AS base
 WORKDIR /app
 
 COPY backend/pyproject.toml /app/backend/pyproject.toml
+COPY backend/requirements.txt /app/backend/requirements.txt
+COPY backend/alembic.ini /app/backend/alembic.ini
+COPY backend/migrations /app/backend/migrations
 COPY backend/app /app/backend/app
 
 ENV PYTHONPATH=/app/backend:/app
 
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r /app/backend/requirements.txt && \
     pip install --no-cache-dir -e /app/backend
 
 EXPOSE 8000
