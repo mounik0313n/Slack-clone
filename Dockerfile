@@ -7,6 +7,7 @@ COPY backend/requirements.txt /app/backend/requirements.txt
 COPY backend/alembic.ini /app/backend/alembic.ini
 COPY backend/migrations /app/backend/migrations
 COPY backend/app /app/backend/app
+COPY backend/main.py /app/backend/main.py
 
 ENV PYTHONPATH=/app/backend:/app
 

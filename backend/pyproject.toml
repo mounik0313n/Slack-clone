@@ -38,6 +38,11 @@ dev = [
 asyncio_mode = "auto"
 pythonpath = ["."]
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+exclude = ["migrations*"]
+
 [build-system]
 requires = ["setuptools>=75", "wheel"]
 build-backend = "setuptools.build_meta"
