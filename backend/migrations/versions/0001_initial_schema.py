@@ -9,6 +9,8 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from app.database import Base
+
 
 revision: str = '0001_initial_schema'
 down_revision: Union[str, None] = None
@@ -17,9 +19,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Schema creation is safely tracked through Alembic revisions
-    # Tables are verified and managed declaratively via Base.metadata
-    pass
+    # Safely create all initial tables if they do not yet exist
+    bind = op.get_bind()
+    Base.metadata.create_all(bind=bind, checkfirst=True)
 
 
 def downgrade() -> None:
