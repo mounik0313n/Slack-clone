@@ -84,24 +84,25 @@ export type MemberItem = {
 const DEFAULT_WORKSPACE_ID = 'ws-default';
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
-function getRealtimeUrl(clientId: string, token?: string | null) {
-  const tokenQuery = token ? `&token=${encodeURIComponent(token)}` : '';
+function getRealtimeUrl(token: string): string {
+  const tokenQuery = `token=${encodeURIComponent(token)}`;
   if (import.meta.env.VITE_WS_URL) {
     const base = String(import.meta.env.VITE_WS_URL).replace(/\/+$/, '');
-    return `${base}?client_id=${clientId}${tokenQuery}`;
+    const sep = base.includes('?') ? '&' : '?';
+    return `${base}${sep}${tokenQuery}`;
   }
   if (API_BASE && API_BASE.startsWith('http')) {
     try {
       const url = new URL(API_BASE);
       const wsProto = url.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${wsProto}//${url.host}/ws?client_id=${clientId}${tokenQuery}`;
+      return `${wsProto}//${url.host}/ws?${tokenQuery}`;
     } catch {
       // ignore
     }
   }
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
   const port = window.location.port ? `:${window.location.port}` : '';
-  return `${protocol}://${window.location.hostname}${port}/ws?client_id=${clientId}${tokenQuery}`;
+  return `${protocol}://${window.location.hostname}${port}/ws?${tokenQuery}`;
 }
 
 const EMOJI_LIST = ['👍', '❤️', '😂', '🚀', '🔥', '🎉', '💡', '🤖', '☕', '👀', '💯', '🙌'];
@@ -254,7 +255,7 @@ export default function App() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: 'Authentication failed' }));
-        setAuthError(err.detail || 'Login failed');
+        setAuthError(err.detail || 'Invalid email or password');
         return false;
       }
       const data = await res.json();
@@ -262,25 +263,34 @@ export default function App() {
       localStorage.setItem('refresh_token', data.refresh_token);
       setAccessToken(data.access_token);
 
-      // Find user
-      const matched = DEFAULT_USERS.find((u) => u.email === email);
-      if (matched) {
-        setCurrentUser(matched);
+      // Fetch dynamic profile from backend
+      try {
+        const meRes = await fetch(`${API_BASE}/api/v1/auth/me`, {
+          headers: { Authorization: `Bearer ${data.access_token}` },
+        });
+        if (meRes.ok) {
+          const u = await meRes.json();
+          setCurrentUser({
+            id: u.id,
+            email: u.email,
+            name: u.display_name || u.username,
+            handle: `@${u.username}`,
+            role: 'member',
+            avatarBg: 'linear-gradient(135deg, #f59e0b, #d97706)',
+            status: 'online',
+          });
+        }
+      } catch {
+        // Fallback matched
+        const matched = DEFAULT_USERS.find((u) => u.email === email);
+        if (matched) setCurrentUser(matched);
       }
+
       setIsAuthModalOpen(false);
       return true;
-    } catch (err) {
+    } catch {
       setAuthError('Connection error contacting server');
       return false;
-    }
-  };
-
-  // Switch Teammate (1-click test authentication)
-  const switchTeammate = async (user: UserProfile) => {
-    setCurrentUser(user);
-    setIsUserMenuOpen(false);
-    if (user.email) {
-      await performLogin(user.email, 'password123');
     }
   };
 
@@ -318,18 +328,51 @@ export default function App() {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     setAccessToken(null);
+    setCurrentUser({
+      id: '',
+      name: 'Guest',
+      handle: '@guest',
+      role: 'guest',
+      avatarBg: 'linear-gradient(135deg, #94a3b8, #64748b)',
+      status: 'offline',
+    });
+    if (realtimeClientRef.current) {
+      realtimeClientRef.current.disconnect();
+      realtimeClientRef.current = null;
+    }
     setIsUserMenuOpen(false);
     setIsAuthModalOpen(true);
   };
 
-  // Ensure default login on initial mount if not authenticated
+  // Initialize Auth on initial mount
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('access_token');
-      if (!token) {
-        // Auto-login Zoe Maxwell for initial seamless experience
-        await performLogin('zoe@acme.com', 'password123');
+      if (token) {
+        setAccessToken(token);
+        try {
+          const meRes = await fetch(`${API_BASE}/api/v1/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (meRes.ok) {
+            const u = await meRes.json();
+            setCurrentUser({
+              id: u.id,
+              email: u.email,
+              name: u.display_name || u.username,
+              handle: `@${u.username}`,
+              role: 'member',
+              avatarBg: 'linear-gradient(135deg, #f59e0b, #d97706)',
+              status: 'online',
+            });
+            return;
+          }
+        } catch {
+          // Token verification error
+        }
       }
+      // If no token or token expired, open auth modal
+      setIsAuthModalOpen(true);
     };
     void initAuth();
     void resolveDeviceId().then((id) => setDeviceId(id));
@@ -370,13 +413,22 @@ export default function App() {
     }
   }, [accessToken]);
 
-  // Connect Realtime Client
+  // Connect Realtime Client only when authenticated
   useEffect(() => {
+    const token = accessToken ?? localStorage.getItem('access_token');
+    if (!token) {
+      setConnStatus('OFFLINE');
+      if (realtimeClientRef.current) {
+        realtimeClientRef.current.disconnect();
+        realtimeClientRef.current = null;
+      }
+      return;
+    }
+
     const client = new RealtimeClient();
     realtimeClientRef.current = client;
     const unsubStatus = client.onStatusChange((status) => setConnStatus(status));
-    const token = accessToken ?? localStorage.getItem('access_token');
-    client.connect(getRealtimeUrl(currentUser.id, token));
+    client.connect(getRealtimeUrl(token));
 
     client.on('message.created', (event: RealtimeEvent) => {
       const p = event.payload;
@@ -1349,33 +1401,16 @@ export default function App() {
         )}
       </div>
 
-      {/* User Switcher / Account Dropdown */}
+      {/* User Account Dropdown */}
       {isUserMenuOpen && (
         <div className="user-menu-popover">
-          <div style={{ padding: '4px 6px 8px', borderBottom: '1px solid var(--slack-border)' }}>
-            <div style={{ fontWeight: 800, fontSize: '0.92rem' }}>Active: {currentUser.name}</div>
-            <small style={{ color: 'var(--text-muted)' }}>Role: {currentUser.role}</small>
+          <div style={{ padding: '6px 8px 10px', borderBottom: '1px solid var(--slack-border)' }}>
+            <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{currentUser.name}</div>
+            {currentUser.email && <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>{currentUser.email}</div>}
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>Role: <strong>{currentUser.role}</strong></div>
           </div>
 
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', margin: '4px 0 2px' }}>SWITCH USER (AUTO-LOGIN)</div>
-          {DEFAULT_USERS.map((user) => (
-            <button
-              key={user.id}
-              className={`user-option-btn ${user.id === currentUser.id ? 'active' : ''}`}
-              onClick={() => void switchTeammate(user)}
-            >
-              <div className="dm-avatar-mini" style={{ background: user.avatarBg, display: 'grid', placeItems: 'center', color: '#fff' }}>
-                {user.name.charAt(0)}
-              </div>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{user.name}</div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>{user.role}</div>
-              </div>
-              {user.id === currentUser.id && <span style={{ color: 'var(--badge-unread)', fontWeight: 800 }}>✓</span>}
-            </button>
-          ))}
-
-          <div style={{ borderTop: '1px solid var(--slack-border)', paddingTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ paddingTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <button className="user-option-btn" onClick={() => { setIsUserMenuOpen(false); void loadAdminData(); }}>
               <span>⚙️</span>
               <span>Workspace Administration</span>

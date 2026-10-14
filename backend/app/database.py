@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
+from datetime import datetime, timezone
 from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 connect_args = {"ssl": True} if settings.database_use_ssl else {}
 
@@ -34,8 +38,6 @@ AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_
 async def seed_defaults() -> None:
     async with AsyncSessionLocal() as session:
         try:
-            from datetime import datetime, timezone
-            from sqlalchemy import select
             from app.modules.auth.models import User
             from app.modules.auth.service import ph
             from app.modules.channels.models import Channel, ChannelMember
@@ -45,8 +47,8 @@ async def seed_defaults() -> None:
             from app.modules.reactions.models import Reaction
             from app.modules.workspaces.models import Workspace, WorkspaceMember
 
-            res = await session.execute(select(Organization).limit(1))
-            if not res.scalars().first():
+            org = await session.get(Organization, "org-default")
+            if not org:
                 now = datetime.now(timezone.utc)
                 org = Organization(id="org-default", name="Acme Inc", slug="acme-inc", created_at=now)
                 session.add(org)
@@ -104,7 +106,6 @@ async def seed_defaults() -> None:
                         created_at=now,
                     )
                     session.add(ch)
-                    # Add team users as members of each channel
                     for uid, _, _, _, role in users_data:
                         cm = ChannelMember(
                             id=f"cm-{ch_id}-{uid}",
@@ -115,7 +116,6 @@ async def seed_defaults() -> None:
                         )
                         session.add(cm)
 
-                # Seed direct conversation between user-1 and user-2
                 conv = Conversation(
                     id="conv-dm-zoe-lee",
                     workspace_id="ws-default",
@@ -127,7 +127,6 @@ async def seed_defaults() -> None:
                 session.add(ConversationMember(id="cmem-1", conversation_id="conv-dm-zoe-lee", user_id="user-1", joined_at=now))
                 session.add(ConversationMember(id="cmem-2", conversation_id="conv-dm-zoe-lee", user_id="user-2", joined_at=now))
 
-                # Seed initial messages in ch-social-media
                 seed_msgs = [
                     ("msg-sm-1", "user-bot", 1, "Event starting in 15 minutes: Team Status Meeting 📝 (Today from 1:00 PM to 1:30 PM)"),
                     ("msg-sm-2", "user-1", 2, "Today @Lisa will join our team huddle to provide updates on the launch. If you have questions, bring 'em. See you all soon!"),
@@ -146,17 +145,32 @@ async def seed_defaults() -> None:
                     )
                     session.add(msg)
 
-                # Seed reactions on msg-sm-2
                 session.add(Reaction(id="rx-1", workspace_id="ws-default", channel_id="ch-social-media", message_id="msg-sm-2", user_id="user-2", emoji="👍", created_at=now))
                 session.add(Reaction(id="rx-2", workspace_id="ws-default", channel_id="ch-social-media", message_id="msg-sm-2", user_id="user-3", emoji="❤️", created_at=now))
 
                 await session.commit()
-        except Exception:
+        except Exception as e:
+            logger.error("seed_defaults_error: %s", e, exc_info=True)
             await session.rollback()
 
 
 async def create_db_and_tables() -> None:
+    # Dynamically import all models before create_all to register them with Base.metadata without circular import
+    from app.modules.admin.models import AuditLog  # noqa: F401
+    from app.modules.auth.models import User  # noqa: F401
+    from app.modules.channels.models import Channel, ChannelBookmark, ChannelMember  # noqa: F401
+    from app.modules.conversations.models import Conversation, ConversationMember  # noqa: F401
+    from app.modules.devices.models import DeviceSession  # noqa: F401
+    from app.modules.files.models import FileAttachment  # noqa: F401
+    from app.modules.mentions.models import Mention  # noqa: F401
+    from app.modules.messages.models import Message  # noqa: F401
+    from app.modules.notifications.models import Notification  # noqa: F401
+    from app.modules.organizations.models import Organization  # noqa: F401
+    from app.modules.reactions.models import Reaction  # noqa: F401
+    from app.modules.read_states.models import ReadState  # noqa: F401
+    from app.modules.threads.models import Thread  # noqa: F401
+    from app.modules.workspaces.models import Workspace, WorkspaceMember  # noqa: F401
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     await seed_defaults()
-

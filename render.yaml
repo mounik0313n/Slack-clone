@@ -23,7 +23,7 @@ services:
       - key: JWT_ALGORITHM
         value: HS256
       - key: CORS_ORIGINS
-        value: https://app.example.com
+        value: https://slack-clone-xi-rust.vercel.app
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL

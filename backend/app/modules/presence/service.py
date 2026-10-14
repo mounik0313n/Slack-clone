@@ -29,7 +29,7 @@ class PresenceService:
             self._local_store.pop(user_id, None)
             return normalized
         if self.redis_client is not None:
-            self.redis_client.setex(f"presence:{user_id}", 30, normalized)
+            self.redis_client.set(f"presence:{user_id}", normalized, ex=30)
         self._local_store[user_id] = normalized
         return normalized
 
@@ -43,5 +43,10 @@ class PresenceService:
     def get_online_users(self) -> set[str]:
         if self.redis_client is not None:
             keys = self.redis_client.keys("presence:*")
-            return {key.decode("utf-8").split(":", 1)[1] for key in keys}
+            online_users: set[str] = set()
+            for key in keys:
+                k = key.decode("utf-8") if isinstance(key, bytes) else str(key)
+                if ":" in k:
+                    online_users.add(k.split(":", 1)[1])
+            return online_users
         return set(self._local_store.keys())

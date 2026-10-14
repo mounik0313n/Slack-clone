@@ -67,7 +67,7 @@ app.add_middleware(
 )
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root() -> dict[str, str | bool]:
     return {
         "status": "ok",
@@ -77,19 +77,28 @@ async def root() -> dict[str, str | bool]:
     }
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/health/live")
+@app.api_route("/health/live", methods=["GET", "HEAD"])
 async def health_live() -> dict[str, str]:
     return {"status": "live"}
 
 
-@app.get("/health/ready")
-async def health_ready() -> dict[str, str]:
-    return {"status": "ready"}
+@app.api_route("/health/ready", methods=["GET", "HEAD"])
+async def health_ready() -> dict[str, str | bool]:
+    from sqlalchemy import text
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return {"status": "ready", "database": "connected"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database unavailable: {str(e)[:100]}",
+        )
 
 
 async def verify_subscription_access(
