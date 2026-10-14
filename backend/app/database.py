@@ -50,12 +50,17 @@ async def seed_defaults() -> None:
             org = await session.get(Organization, "org-default")
             if not org:
                 now = datetime.now(timezone.utc)
+                # 1. Organization
                 org = Organization(id="org-default", name="Acme Inc", slug="acme-inc", created_at=now)
                 session.add(org)
+                await session.flush()
 
+                # 2. Workspace
                 ws = Workspace(id="ws-default", organization_id="org-default", name="Acme Inc", slug="acme-inc", created_at=now)
                 session.add(ws)
+                await session.flush()
 
+                # 3. Users and Workspace Members
                 default_password_hash = ph.hash("password123")
                 users_data = [
                     ("user-1", "zoe@acme.com", "zoe", "Zoe Maxwell", "admin"),
@@ -84,7 +89,9 @@ async def seed_defaults() -> None:
                         joined_at=now,
                     )
                     session.add(wm)
+                await session.flush()
 
+                # 4. Channels and Channel Members
                 channels_data = [
                     ("ch-social-media", "social-media", "Track and coordinate social media", False),
                     ("ch-announcements", "announcements", "Company announcements", False),
@@ -115,7 +122,9 @@ async def seed_defaults() -> None:
                             joined_at=now,
                         )
                         session.add(cm)
+                await session.flush()
 
+                # 5. Conversations
                 conv = Conversation(
                     id="conv-dm-zoe-lee",
                     workspace_id="ws-default",
@@ -126,7 +135,9 @@ async def seed_defaults() -> None:
                 session.add(conv)
                 session.add(ConversationMember(id="cmem-1", conversation_id="conv-dm-zoe-lee", user_id="user-1", joined_at=now))
                 session.add(ConversationMember(id="cmem-2", conversation_id="conv-dm-zoe-lee", user_id="user-2", joined_at=now))
+                await session.flush()
 
+                # 6. Messages
                 seed_msgs = [
                     ("msg-sm-1", "user-bot", 1, "Event starting in 15 minutes: Team Status Meeting 📝 (Today from 1:00 PM to 1:30 PM)"),
                     ("msg-sm-2", "user-1", 2, "Today @Lisa will join our team huddle to provide updates on the launch. If you have questions, bring 'em. See you all soon!"),
@@ -144,7 +155,9 @@ async def seed_defaults() -> None:
                         created_at=now,
                     )
                     session.add(msg)
+                await session.flush()
 
+                # 7. Reactions
                 session.add(Reaction(id="rx-1", workspace_id="ws-default", channel_id="ch-social-media", message_id="msg-sm-2", user_id="user-2", emoji="👍", created_at=now))
                 session.add(Reaction(id="rx-2", workspace_id="ws-default", channel_id="ch-social-media", message_id="msg-sm-2", user_id="user-3", emoji="❤️", created_at=now))
 
@@ -152,6 +165,7 @@ async def seed_defaults() -> None:
         except Exception as e:
             logger.error("seed_defaults_error: %s", e, exc_info=True)
             await session.rollback()
+            raise
 
 
 async def create_db_and_tables() -> None:
