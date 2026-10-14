@@ -1,7 +1,7 @@
 """Add is_pinned to messages and channel_bookmarks table
 
 Revision ID: 0003_pins_and_bookmarks
-Revises: 0002_workspace_members_audit_logs
+Revises: 0002_workspace_members_audit
 Create Date: 2026-10-14 07:30:00.000000
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision: str = '0003_pins_and_bookmarks'
-down_revision: Union[str, None] = '0002_workspace_members_audit_logs'
+down_revision: Union[str, None] = '0002_workspace_members_audit'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

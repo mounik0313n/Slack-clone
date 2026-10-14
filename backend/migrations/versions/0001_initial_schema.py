@@ -19,7 +19,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Safely create all initial tables if they do not yet exist
+    # 1. Widen alembic_version column to 64 chars for long revision identifiers
+    try:
+        op.execute(sa.text("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(64);"))
+    except Exception:
+        pass
+
+    # 2. Safely create all initial tables if they do not yet exist
     bind = op.get_bind()
     Base.metadata.create_all(bind=bind, checkfirst=True)
 
